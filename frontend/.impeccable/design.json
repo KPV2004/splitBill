@@ -1,0 +1,701 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-14T03:56:06+00:00",
+  "title": "Design System: SplitBill",
+  "extensions": {
+    "colorMeta": {
+      "rail": {
+        "role": "primary",
+        "displayName": "Pinto Rail Green",
+        "canonical": "#12493d",
+        "oklch": "oklch(36.6% 0.060 175.1)",
+        "tonalRamp": [
+          "#000f0a",
+          "#072c24",
+          "#1b4c40",
+          "#396d5f",
+          "#5a8e80",
+          "#80b1a3",
+          "#acd3c7",
+          "#daf6ed"
+        ]
+      },
+      "rail-hover": {
+        "role": "primary",
+        "displayName": "Rail Hover",
+        "canonical": "#1a5a4b",
+        "oklch": "oklch(42.3% 0.069 174.1)",
+        "tonalRamp": [
+          "#00100a",
+          "#002d23",
+          "#104d3f",
+          "#316e5e",
+          "#53907f",
+          "#7ab3a2",
+          "#a8d4c7",
+          "#d7f7ed"
+        ]
+      },
+      "rail-active": {
+        "role": "primary",
+        "displayName": "Rail Active",
+        "canonical": "#216a58",
+        "oklch": "oklch(47.4% 0.077 173.3)",
+        "tonalRamp": [
+          "#00100a",
+          "#002e23",
+          "#004e3e",
+          "#286f5d",
+          "#4c927e",
+          "#74b4a1",
+          "#a4d6c6",
+          "#d4f8ec"
+        ]
+      },
+      "rail-line": {
+        "role": "primary",
+        "displayName": "Rail Line",
+        "canonical": "#2a6a5b",
+        "oklch": "oklch(47.8% 0.070 175.3)",
+        "tonalRamp": [
+          "#00100a",
+          "#002d24",
+          "#0d4d40",
+          "#2f6e5f",
+          "#529080",
+          "#78b3a3",
+          "#a7d5c7",
+          "#d6f7ed"
+        ]
+      },
+      "rail-text": {
+        "role": "primary",
+        "displayName": "Rail Mist",
+        "canonical": "#eef6f2",
+        "oklch": "oklch(96.6% 0.010 164.9)",
+        "tonalRamp": [
+          "#090c0b",
+          "#222624",
+          "#3e4441",
+          "#5c6360",
+          "#7d8481",
+          "#a0a7a3",
+          "#c5cbc8",
+          "#ebf0ed"
+        ]
+      },
+      "rail-muted": {
+        "role": "primary",
+        "displayName": "Rail Sage",
+        "canonical": "#a9cbbf",
+        "oklch": "oklch(81.4% 0.040 171.9)",
+        "tonalRamp": [
+          "#030e0a",
+          "#152a23",
+          "#2d4940",
+          "#4a695e",
+          "#6a8a7f",
+          "#8eada2",
+          "#b7d0c7",
+          "#e1f3ed"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Brushed Steel Ground",
+        "canonical": "#f1f4f2",
+        "oklch": "oklch(96.4% 0.004 157.2)",
+        "tonalRamp": [
+          "#0a0b0b",
+          "#242524",
+          "#404341",
+          "#5f6260",
+          "#808381",
+          "#a3a6a4",
+          "#c7cac8",
+          "#edefee"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Enamel White",
+        "canonical": "#ffffff",
+        "oklch": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "sunken": {
+        "role": "neutral",
+        "displayName": "Sunken Steel",
+        "canonical": "#e8edea",
+        "oklch": "oklch(94.1% 0.007 160.1)",
+        "tonalRamp": [
+          "#0a0c0b",
+          "#232624",
+          "#3f4341",
+          "#5e6260",
+          "#7f8481",
+          "#a2a6a4",
+          "#c6cac8",
+          "#ecefee"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "canonical": "#d9e1dd",
+        "oklch": "oklch(90.3% 0.010 164.8)",
+        "tonalRamp": [
+          "#090c0b",
+          "#222624",
+          "#3e4441",
+          "#5c6360",
+          "#7d8481",
+          "#a0a7a3",
+          "#c5cbc8",
+          "#ebf0ed"
+        ]
+      },
+      "line-soft": {
+        "role": "neutral",
+        "displayName": "Soft Line",
+        "canonical": "#e9eeeb",
+        "oklch": "oklch(94.4% 0.007 160.1)",
+        "tonalRamp": [
+          "#0a0c0b",
+          "#232624",
+          "#3f4341",
+          "#5e6260",
+          "#7f8481",
+          "#a2a6a4",
+          "#c6cac8",
+          "#ecefee"
+        ]
+      },
+      "steel-400": {
+        "role": "neutral",
+        "displayName": "Steel",
+        "canonical": "#a3b0ab",
+        "oklch": "oklch(74.6% 0.016 170.9)",
+        "tonalRamp": [
+          "#080c0b",
+          "#202724",
+          "#3a4541",
+          "#596460",
+          "#798681",
+          "#9ca8a4",
+          "#c2ccc8",
+          "#e9f0ee"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#17231f",
+        "oklch": "oklch(24.3% 0.018 172.1)",
+        "tonalRamp": [
+          "#070d0b",
+          "#1f2724",
+          "#394541",
+          "#576560",
+          "#788681",
+          "#9ba9a4",
+          "#c1ccc8",
+          "#e8f1ee"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink 2",
+        "canonical": "#45554f",
+        "oklch": "oklch(43.4% 0.022 170.5)",
+        "tonalRamp": [
+          "#070d0a",
+          "#1d2824",
+          "#374640",
+          "#55665f",
+          "#768780",
+          "#99aaa3",
+          "#bfcdc7",
+          "#e7f1ed"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Ink 3",
+        "canonical": "#5f6e68",
+        "oklch": "oklch(52.4% 0.020 169.5)",
+        "tonalRamp": [
+          "#070d0a",
+          "#1e2724",
+          "#384540",
+          "#56655f",
+          "#778680",
+          "#9aa9a3",
+          "#c0ccc7",
+          "#e8f1ed"
+        ]
+      },
+      "positive": {
+        "role": "tertiary",
+        "displayName": "Ledger Green",
+        "canonical": "#1b7650",
+        "oklch": "oklch(50.4% 0.103 160.4)",
+        "tonalRamp": [
+          "#001104",
+          "#002f18",
+          "#005130",
+          "#16734d",
+          "#41956d",
+          "#6bb891",
+          "#9ed9b9",
+          "#d0fae3"
+        ]
+      },
+      "ok-soft": {
+        "role": "tertiary",
+        "displayName": "Mint Wash",
+        "canonical": "#e3f2ea",
+        "oklch": "oklch(94.8% 0.019 162.9)",
+        "tonalRamp": [
+          "#080d0a",
+          "#1f2723",
+          "#3a453f",
+          "#58655e",
+          "#79867f",
+          "#9ca9a2",
+          "#c2ccc6",
+          "#e9f1ec"
+        ]
+      },
+      "negative": {
+        "role": "tertiary",
+        "displayName": "Brick",
+        "canonical": "#b4372b",
+        "oklch": "oklch(52.1% 0.163 29.3)",
+        "tonalRamp": [
+          "#250000",
+          "#500000",
+          "#800301",
+          "#aa2d23",
+          "#d25345",
+          "#f67b6b",
+          "#ffab9c",
+          "#ffdace"
+        ]
+      },
+      "negative-soft": {
+        "role": "tertiary",
+        "displayName": "Blush Wash",
+        "canonical": "#fbeae7",
+        "oklch": "oklch(95.0% 0.019 29.5)",
+        "tonalRamp": [
+          "#0f0a09",
+          "#2b2321",
+          "#4b3f3c",
+          "#6c5d5b",
+          "#8d7e7c",
+          "#b0a19f",
+          "#d2c6c4",
+          "#f5eceb"
+        ]
+      },
+      "warn": {
+        "role": "tertiary",
+        "displayName": "Ochre",
+        "canonical": "#7a5410",
+        "oklch": "oklch(47.6% 0.093 76.0)",
+        "tonalRamp": [
+          "#160700",
+          "#371f00",
+          "#5c3a00",
+          "#7f5917",
+          "#a27a3d",
+          "#c59e65",
+          "#e3c498",
+          "#ffebcb"
+        ]
+      },
+      "warn-soft": {
+        "role": "tertiary",
+        "displayName": "Cream Wash",
+        "canonical": "#fbf1d9",
+        "oklch": "oklch(96.0% 0.033 88.1)",
+        "tonalRamp": [
+          "#0e0b04",
+          "#2a2417",
+          "#49412f",
+          "#69604c",
+          "#8b826c",
+          "#ada48f",
+          "#d0c9b8",
+          "#f3eee2"
+        ]
+      },
+      "enamel-jade": {
+        "role": "secondary",
+        "displayName": "Jade (roommate 1)",
+        "canonical": "#2a7f63",
+        "oklch": "oklch(53.8% 0.093 167.4)",
+        "tonalRamp": [
+          "#001107",
+          "#002f1e",
+          "#005038",
+          "#187256",
+          "#429477",
+          "#6cb79a",
+          "#9fd8c0",
+          "#d1fae8"
+        ]
+      },
+      "enamel-cobalt": {
+        "role": "secondary",
+        "displayName": "Cobalt (roommate 2)",
+        "canonical": "#2f5fb3",
+        "oklch": "oklch(49.8% 0.144 260.7)",
+        "tonalRamp": [
+          "#00072a",
+          "#022057",
+          "#113d88",
+          "#2e5db1",
+          "#4e80d7",
+          "#73a4f9",
+          "#a2caff",
+          "#d2f0ff"
+        ]
+      },
+      "enamel-marigold": {
+        "role": "secondary",
+        "displayName": "Marigold (roommate 3)",
+        "canonical": "#e2a527",
+        "oklch": "oklch(76.1% 0.148 79.8)",
+        "tonalRamp": [
+          "#1b0400",
+          "#3f1a00",
+          "#673400",
+          "#8c5300",
+          "#b07500",
+          "#d29a27",
+          "#eec175",
+          "#ffeab4"
+        ]
+      },
+      "enamel-plum": {
+        "role": "secondary",
+        "displayName": "Plum (roommate 4)",
+        "canonical": "#8a4fa0",
+        "oklch": "oklch(53.0% 0.137 316.2)",
+        "tonalRamp": [
+          "#16001f",
+          "#370f45",
+          "#5c266f",
+          "#7f4494",
+          "#a266b9",
+          "#c58bdb",
+          "#e3b5f5",
+          "#ffe0ff"
+        ]
+      },
+      "enamel-teal": {
+        "role": "secondary",
+        "displayName": "Teal (roommate 5)",
+        "canonical": "#1f7f8c",
+        "oklch": "oklch(54.9% 0.086 208.6)",
+        "tonalRamp": [
+          "#001015",
+          "#002d35",
+          "#004d59",
+          "#006e7b",
+          "#36919e",
+          "#63b3c0",
+          "#99d5df",
+          "#cdf8ff"
+        ]
+      },
+      "enamel-rose": {
+        "role": "secondary",
+        "displayName": "Rose (roommate 6)",
+        "canonical": "#b8476e",
+        "oklch": "oklch(56.0% 0.150 1.8)",
+        "tonalRamp": [
+          "#220009",
+          "#4b0021",
+          "#780f3c",
+          "#a1325b",
+          "#c8557c",
+          "#ec7c9e",
+          "#ffabc4",
+          "#ffd9ea"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Auth-panel tagline only."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Headline amount in the balance sentence; tabular."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Household title and auth-screen title."
+      },
+      "statement": {
+        "displayName": "Statement",
+        "purpose": "The \"You're owed / You owe\" sentence."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "\"SplitBill\" set as text on the rail."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Panel titles (\"New bill\")."
+      },
+      "title-sm": {
+        "displayName": "Title Small",
+        "purpose": "The \"Bills\" table heading."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Inputs, primary buttons, rail items, lead copy."
+      },
+      "body-sm": {
+        "displayName": "Body Small",
+        "purpose": "Table cells, member lists, banners."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels and in-card section headings, sentence case."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Column headers, tier labels, hints, row meta, quiet buttons."
+      }
+    },
+    "shadows": [
+      {
+        "name": "surface",
+        "value": "0 1px 2px rgb(18 73 61 / 0.06), 0 4px 16px -6px rgb(18 73 61 / 0.12)",
+        "purpose": "Cards, active segmented/toggle option, enabled primary button."
+      },
+      {
+        "name": "raised",
+        "value": "0 2px 4px rgb(18 73 61 / 0.08), 0 12px 32px -12px rgb(18 73 61 / 0.22)",
+        "purpose": "The new-bill (composing) panel only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Carrier tiers growing and shrinking as amounts are typed (320ms)."
+      },
+      {
+        "name": "tier-fill",
+        "value": "background-color 200ms ease-out",
+        "purpose": "Tier colour crossfade."
+      },
+      {
+        "name": "control-colors",
+        "value": "color/background-color 150ms (Tailwind transition-colors default)",
+        "purpose": "Hover on buttons, rail items, inputs, toggles."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "transition: none",
+        "purpose": "Tier motion disabled under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px",
+        "purpose": "Bills table replaces stacked rows."
+      },
+      {
+        "name": "lg",
+        "value": "1024px",
+        "purpose": "Top bar becomes the 15.5rem sticky rail; auth splits into promise panel + form."
+      },
+      {
+        "name": "wide",
+        "value": "80rem",
+        "purpose": "Ledger column plus clamp(21rem, 26vw, 25rem) sticky new-bill panel."
+      },
+      {
+        "name": "@xs (container)",
+        "value": "20rem",
+        "purpose": "Carrier widens 80px to 112px."
+      },
+      {
+        "name": "@3xl (container)",
+        "value": "48rem",
+        "purpose": "New-bill form: inputs and carrier side by side."
+      },
+      {
+        "name": "@4xl (container)",
+        "value": "56rem",
+        "purpose": "Balance card: sentence and scale side by side."
+      }
+    ],
+    "memberColorOrder": [
+      "enamel-jade",
+      "enamel-cobalt",
+      "enamel-marigold",
+      "enamel-plum",
+      "enamel-teal",
+      "enamel-rose"
+    ],
+    "memberColorFallback": "steel-400",
+    "icons": {
+      "grid": "24px",
+      "stroke": 1.75,
+      "caps": "round",
+      "joins": "round",
+      "sizing": "1em, currentColor"
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Rail-green fill for the one primary action per surface (save bill, sign in).",
+      "html": "<button class=\"ds-btn-primary\">Save bill</button> <button class=\"ds-btn-primary\" disabled>Save bill</button>",
+      "css": ".ds-btn-primary { font-family: Anuphan, \"Noto Sans Thai\", system-ui, sans-serif; width: 240px; background: var(--color-rail, #12493d); color: var(--color-rail-text, #eef6f2); border: 0; border-radius: 0.75rem; padding: 12px 16px; font-size: 0.9375rem; font-weight: 600; box-shadow: 0 1px 2px rgb(18 73 61 / 0.06), 0 4px 16px -6px rgb(18 73 61 / 0.12); cursor: pointer; transition: background-color 150ms ease-out; } .ds-btn-primary:hover { background: var(--color-rail-hover, #1a5a4b); } .ds-btn-primary:focus-visible { outline: 2px solid var(--color-enamel-jade, #2a7f63); outline-offset: 2px; } .ds-btn-primary:disabled { background: var(--color-sunken, #e8edea); color: var(--color-ink-3, #5f6e68); box-shadow: none; cursor: not-allowed; }"
+    },
+    {
+      "name": "Quiet Delete Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Payer-only inline delete; first step of a two-step confirm.",
+      "html": "<button class=\"ds-btn-quiet\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12M9 7V4h6v3\"/></svg>Delete</button> <button class=\"ds-btn-confirm\">Delete</button>",
+      "css": ".ds-btn-quiet { font-family: Anuphan, \"Noto Sans Thai\", system-ui, sans-serif; display: inline-flex; align-items: center; gap: 4px; background: transparent; border: 0; border-radius: 0.5rem; padding: 4px 8px; font-size: 0.75rem; font-weight: 500; color: var(--color-ink-3, #5f6e68); cursor: pointer; transition: background-color 150ms, color 150ms; } .ds-btn-quiet:hover { background: var(--color-negative-soft, #fbeae7); color: var(--color-negative, #b4372b); } .ds-btn-quiet:focus-visible, .ds-btn-confirm:focus-visible { outline: 2px solid var(--color-enamel-jade, #2a7f63); outline-offset: 2px; } .ds-btn-confirm { font-family: Anuphan, \"Noto Sans Thai\", system-ui, sans-serif; background: var(--color-negative, #b4372b); color: #fff; border: 0; border-radius: 0.5rem; padding: 4px 10px; font-size: 0.75rem; font-weight: 600; cursor: pointer; } .ds-btn-confirm:hover { opacity: 0.9; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Shared field style for every form; amounts are tabular and right-aligned.",
+      "html": "<label class=\"ds-field\"><span>Amount (THB)</span><input class=\"ds-input ds-num\" placeholder=\"0.00\"></label>",
+      "css": ".ds-field { font-family: Anuphan, \"Noto Sans Thai\", system-ui, sans-serif; display: grid; gap: 6px; width: 220px; } .ds-field span { font-size: 0.875rem; font-weight: 600; color: var(--color-ink-2, #45554f); } .ds-input { font: inherit; font-size: 0.9375rem; color: var(--color-ink, #17231f); background: var(--color-surface, #fff); border: 1px solid var(--color-line, #d9e1dd); border-radius: 0.75rem; padding: 10px 14px; transition: border-color 150ms; } .ds-input::placeholder { color: var(--color-ink-3, #5f6e68); } .ds-input:hover { border-color: var(--color-steel-400, #a3b0ab); } .ds-input:focus { outline: none; border-color: var(--color-enamel-jade, #2a7f63); box-shadow: 0 0 0 2px rgb(42 127 99 / 0.25); } .ds-num { text-align: right; font-variant-numeric: tabular-nums lining-nums; }"
+    },
+    {
+      "name": "Split Type Segmented Control",
+      "kind": "chip",
+      "refersTo": "segmented-track",
+      "description": "Equal / exact split switch: sunken track, white active chip.",
+      "html": "<div class=\"ds-seg\"><button class=\"ds-seg-opt is-active\">Equally</button><button class=\"ds-seg-opt\">Exact amounts</button></div>",
+      "css": ".ds-seg { font-family: Anuphan, \"Noto Sans Thai\", system-ui, sans-serif; display: grid; grid-template-columns: 1fr 1fr; width: 320px; background: var(--color-sunken, #e8edea); border-radius: 0.75rem; padding: 4px; } .ds-seg-opt { font: inherit; font-size: 0.875rem; font-weight: 500; border: 0; background: transparent; color: var(--color-ink-3, #5f6e68); border-radius: 0.5rem; padding: 8px 12px; cursor: pointer; transition: color 150ms; } .ds-seg-opt:hover { color: var(--color-ink, #17231f); } .ds-seg-opt.is-active { background: var(--color-surface, #fff); color: var(--color-ink, #17231f); box-shadow: 0 1px 2px rgb(18 73 61 / 0.06), 0 4px 16px -6px rgb(18 73 61 / 0.12); } .ds-seg-opt:focus-visible { outline: 2px solid var(--color-enamel-jade, #2a7f63); }"
+    },
+    {
+      "name": "Household Rail",
+      "kind": "nav",
+      "refersTo": "rail-item",
+      "description": "Enamel-green rail listing households with your signed balance; pill language toggle.",
+      "html": "<nav class=\"ds-rail\"><strong class=\"ds-rail-mark\">SplitBill</strong><p class=\"ds-rail-label\">Households</p><button class=\"ds-rail-item is-active\"><span>Ari Condo 12A</span><span class=\"ds-rail-num\">+11,257.03</span></button><button class=\"ds-rail-item\"><span>Lat Phrao House</span><span class=\"ds-rail-num\">−106.00</span></button><div class=\"ds-toggle\"><button>ไทย</button><button class=\"is-active\">EN</button></div></nav>",
+      "css": ".ds-rail { font-family: Anuphan, \"Noto Sans Thai\", system-ui, sans-serif; width: 248px; background: var(--color-rail, #12493d); color: var(--color-rail-text, #eef6f2); padding: 24px 12px; display: grid; gap: 4px; } .ds-rail-mark { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.025em; padding: 0 12px 12px; } .ds-rail-label { margin: 0; padding: 0 12px 2px; font-size: 0.875rem; font-weight: 600; color: var(--color-rail-muted, #a9cbbf); } .ds-rail-item { font: inherit; font-size: 0.9375rem; display: flex; justify-content: space-between; gap: 16px; border: 0; background: transparent; color: var(--color-rail-text, #eef6f2); text-align: left; border-radius: 0.75rem; padding: 10px 12px; cursor: pointer; transition: background-color 150ms; } .ds-rail-item:hover { background: var(--color-rail-hover, #1a5a4b); } .ds-rail-item.is-active { background: var(--color-rail-active, #216a58); color: #fff; font-weight: 600; } .ds-rail-item:focus-visible, .ds-toggle button:focus-visible { outline: 2px solid var(--color-rail-text, #eef6f2); outline-offset: 2px; } .ds-rail-num { font-size: 0.875rem; font-weight: 400; color: var(--color-rail-muted, #a9cbbf); font-variant-numeric: tabular-nums lining-nums; } .ds-toggle { justify-self: start; margin: 16px 12px 0; display: inline-flex; padding: 2px; border-radius: 9999px; background: var(--color-rail-hover, #1a5a4b); } .ds-toggle button { font: inherit; font-size: 0.875rem; font-weight: 500; border: 0; background: transparent; color: var(--color-rail-muted, #a9cbbf); border-radius: 9999px; padding: 4px 12px; cursor: pointer; } .ds-toggle button:hover { color: var(--color-rail-text, #eef6f2); } .ds-toggle button.is-active { background: var(--color-rail-text, #eef6f2); color: var(--color-rail, #12493d); }"
+    },
+    {
+      "name": "Balance Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Where everyone stands: ink sentence and figure, plus a diverging scale in roommate enamels.",
+      "html": "<section class=\"ds-card\"><h2 class=\"ds-card-label\">Balances</h2><p class=\"ds-statement\">You’re owed <span class=\"ds-figure\">11,257.03</span></p><ul class=\"ds-scale\"><li><span class=\"ds-who\"><i style=\"background:#2a7f63\"></i>alice</span><span class=\"ds-track\"><b class=\"ds-zero\"></b><b class=\"ds-bar\" style=\"left:50%;width:50%;background:#2a7f63\"></b></span><span class=\"ds-amt\">+11,257.03<small>is owed</small></span></li><li><span class=\"ds-who\"><i style=\"background:#2f5fb3\"></i>bob</span><span class=\"ds-track\"><b class=\"ds-zero\"></b><b class=\"ds-bar\" style=\"right:50%;width:29%;background:#2f5fb3\"></b></span><span class=\"ds-amt\">−6,486.72<small>owes</small></span></li></ul></section>",
+      "css": ".ds-card { font-family: Anuphan, \"Noto Sans Thai\", system-ui, sans-serif; width: 520px; background: var(--color-surface, #fff); border-radius: 1rem; padding: 24px; box-shadow: 0 1px 2px rgb(18 73 61 / 0.06), 0 4px 16px -6px rgb(18 73 61 / 0.12); color: var(--color-ink, #17231f); } .ds-card-label { margin: 0; font-size: 0.875rem; font-weight: 600; color: var(--color-ink-2, #45554f); } .ds-statement { margin: 8px 0 20px; font-size: 1.5rem; font-weight: 600; line-height: 1.375; } .ds-figure { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.025em; font-variant-numeric: tabular-nums lining-nums; } .ds-scale { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; } .ds-scale li { display: grid; grid-template-columns: 6.5rem 1fr 7.5rem; gap: 12px; align-items: center; font-size: 0.875rem; } .ds-who { display: flex; align-items: center; gap: 8px; font-weight: 500; } .ds-who i { width: 10px; height: 10px; border-radius: 9999px; } .ds-track { position: relative; height: 10px; border-radius: 9999px; background: var(--color-sunken, #e8edea); } .ds-zero { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 1px; background: var(--color-steel-400, #a3b0ab); } .ds-bar { position: absolute; top: 0; bottom: 0; border-radius: 9999px; } .ds-amt { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums lining-nums; } .ds-amt small { display: block; font-size: 0.75rem; font-weight: 400; color: var(--color-ink-3, #5f6e68); }"
+    },
+    {
+      "name": "Banner",
+      "kind": "custom",
+      "refersTo": "banner-error",
+      "description": "One dismissible message strip: error (Brick on Blush) or success (Ledger Green on Mint).",
+      "html": "<div class=\"ds-banner is-error\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 8v5M12 16.5v.5M10.3 4.2L2.8 17.5A2 2 0 004.5 20.5h15a2 2 0 001.7-3L13.7 4.2a2 2 0 00-3.4 0z\"/></svg><p>Shares must add up to the total before saving.</p></div><div class=\"ds-banner is-ok\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12.5l4.5 4.5L19 7.5\"/></svg><p>Bill saved.</p></div>",
+      "css": ".ds-banner { font-family: Anuphan, \"Noto Sans Thai\", system-ui, sans-serif; width: 420px; display: flex; gap: 12px; align-items: flex-start; border-radius: 0.75rem; padding: 12px 16px; font-size: 0.875rem; margin-bottom: 8px; } .ds-banner svg { flex-shrink: 0; margin-top: 2px; } .ds-banner p { margin: 0; line-height: 1.625; } .ds-banner.is-error { background: var(--color-negative-soft, #fbeae7); color: var(--color-negative, #b4372b); } .ds-banner.is-ok { background: var(--color-ok-soft, #e3f2ea); color: var(--color-positive, #1b7650); }"
+    },
+    {
+      "name": "Pinto Carrier",
+      "kind": "custom",
+      "refersTo": "carrier",
+      "description": "Signature: one bill as a fixed-height stack of enamel tiers proportional to each share; open dashed tier for the unassigned remainder.",
+      "html": "<div class=\"ds-carrier-wrap\"><div class=\"ds-carrier\"><div class=\"ds-tier\" style=\"flex-grow:50;background:#2a7f63;color:#fff\">500.00</div><div class=\"ds-tier\" style=\"flex-grow:30;background:#2f5fb3;color:#fff\">300.00</div><div class=\"ds-tier ds-tier-open\" style=\"flex-grow:20\">200.00</div></div><div class=\"ds-carrier-wrap is-over\"><span class=\"ds-over\">+50.00</span><div class=\"ds-carrier\"><div class=\"ds-tier\" style=\"flex-grow:60;background:#2a7f63;color:#fff\">600.00</div><div class=\"ds-tier\" style=\"flex-grow:45;background:#e2a527;color:#17231f\">450.00</div></div></div></div>",
+      "css": ".ds-carrier-wrap { display: flex; gap: 24px; align-items: flex-end; font-family: Anuphan, \"Noto Sans Thai\", system-ui, sans-serif; } .ds-carrier-wrap.is-over { position: relative; padding-top: 28px; display: block; } .ds-carrier { width: 112px; height: 248px; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 1.25rem; background: var(--color-sunken, #e8edea); box-sizing: border-box; } .is-over .ds-carrier { box-shadow: 0 0 0 2px var(--color-ink, #17231f); background-image: repeating-linear-gradient(-45deg, rgb(23 35 31 / 0.14) 0 6px, transparent 6px 12px); } .ds-tier { flex-basis: 0; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 0.75rem; font-size: 0.75rem; font-weight: 600; font-variant-numeric: tabular-nums lining-nums; transition: flex-grow 320ms cubic-bezier(0.16, 1, 0.3, 1), background-color 200ms ease-out; } .ds-tier-open { border: 2px dashed var(--color-steel-400, #a3b0ab); color: var(--color-ink-3, #5f6e68); font-weight: 500; } .ds-over { position: absolute; top: 0; left: 0; right: 0; text-align: center; border-radius: 9999px; background: var(--color-ink, #17231f); color: #fff; font-size: 0.75rem; font-weight: 600; padding: 2px 8px; font-variant-numeric: tabular-nums; } @media (prefers-reduced-motion: reduce) { .ds-tier { transition: none; } }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Pinto Carrier",
+    "overview": "**Creative North Star: \"The Pinto Carrier\"**\n\nEvery bill is one pinto enamel tiffin carrier: a fixed-height stack in which each roommate's share is an enamel tier, sized in exact proportion to its satang, filling the carrier to the rim and never past it. The world around the carrier is quiet and industrial-domestic: a deep enamel-green rail holds the households and the account, a cool brushed-steel ground sits behind white work surfaces, and the only saturated colour on a screen belongs to the people sharing the bill.\n\nThe tool is calm and dense, and it is used at household scale. Amounts are the content. They are set in tabular, lining figures, aligned right, and stay in ink, so the sign and the words say which way money flows. Depth is soft and tinted with the rail's green. Corners are rounded like pressed enamel: generous on containers, softer on tiers, and fully round on toggles and identity dots. Thai and English share one typeface (Anuphan) and one taller line height, so neither language reads as the afterthought.\n\nThe system rejects the fintech default: white cards with green/red figures beside a grey sidebar. Balance direction never comes from red-or-green numerals, and state never borrows a roommate's colour.",
+    "keyCharacteristics": [
+      "A deep enamel-green rail over a cool steel ground; white surfaces carry the work.",
+      "Six roommate enamels, each assigned by member order and used only to mark identity.",
+      "The carrier (and the MiniCarrier at row scale) is the signature form for any split.",
+      "Every amount is tabular and right-aligned, with exactly two decimals.",
+      "One family, Anuphan, sets both Thai and Latin text, with a 1.6 body line height.",
+      "Soft, green-tinted shadows. No hard offsets and no borders around cards."
+    ],
+    "rules": [
+      {
+        "name": "The One Job Rule",
+        "body": "A roommate enamel marks whose share, payment or balance something is (tiers, dots, balance bars, ghost-tier outlines), and nothing else. It never signals owed/owes, over, error or success.",
+        "section": "colors"
+      },
+      {
+        "name": "The Jade Interaction Exception",
+        "body": "Jade is also the build's interaction accent: the focus outline, the input focus ring, the caret, the text selection, checkbox accents and inline links (\"Everyone\", \"Create an account\"). That is the only non-identity use of any enamel, and it covers interaction affordance only, never data state. Because it overlaps roommate 1's identity colour, treat it as provisional: do not extend jade to any new role.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink Figures Rule",
+        "body": "Balance and bill amounts are always ink. Direction comes from the sign (+ / −) and the words (\"is owed\", \"owes\"), not from red or green numerals.",
+        "section": "colors"
+      },
+      {
+        "name": "The Rail Owns Action Rule",
+        "body": "Primary actions are filled with rail green, never with an enamel. Enamels identify people. The rail is the voice of the tool.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Satang Rule",
+        "body": "Every amount carries tabular, lining figures (\"tnum\", \"lnum\") and right alignment within its column. Amounts always show two decimals.",
+        "section": "typography"
+      },
+      {
+        "name": "The Thai Line Rule",
+        "body": "Body line height stays at 1.6 so Thai vowels and tone marks above and below the line never collide. A phrase and its figure each stay unbroken (no wrapping), so Thai never breaks mid-phrase.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Raised Panel Rule",
+        "body": "Only the composing surface (the new-bill panel) is raised. Everything else stays at surface lift or flat.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** give each roommate exactly one enamel, chosen by their position in the household member list, and reuse it for every tier, dot and bar of theirs.",
+      "**Do** render any split as a carrier (or MiniCarrier) whose tiers sum exactly to the rim.",
+      "**Do** set every amount in tabular, lining figures, right-aligned, in ink, with two decimals.",
+      "**Do** fill primary actions with rail green (#12493d) and deepen to rail-hover on hover.",
+      "**Do** keep body text at line height 1.6 and set Thai and English in Anuphan.",
+      "**Do** tint shadows with rail green and reserve the raised shadow for the composing panel.",
+      "**Do** switch component layouts on container width, not viewport width."
+    ],
+    "donts": [
+      "**Don't** use a roommate enamel to signal data state: no green-for-owed, no red-for-owes, no enamel on errors or overflow. Jade's interaction role (focus, links, checkbox accent) is the single recorded exception.",
+      "**Don't** colour balance or bill figures red or green; direction comes from the sign and the words.",
+      "**Don't** draw the over-assigned state in red on a roommate's colour; use the ink pill, ink ring and hatching.",
+      "**Don't** let a carrier grow taller than its fixed height to fit more satang.",
+      "**Don't** add borders around cards or use hard, offset, untinted shadows.",
+      "**Don't** set a separate Latin display face beside Anuphan; Thai and English share one family."
+    ]
+  }
+}

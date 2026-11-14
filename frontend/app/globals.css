@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+/*
+ * SplitBill — "Pinto" world. A deep enamel-green rail over a cool brushed-steel
+ * ground; roommates each own one enamel colour, used only for identity.
+ * Light theme only for now (see .impeccable/surfaces/app-page-tsx.md).
+ */
+@theme {
+  --color-rail: #12493d;
+  --color-rail-hover: #1a5a4b;
+  --color-rail-active: #216a58;
+  --color-rail-line: #2a6a5b;
+  --color-rail-text: #eef6f2;
+  --color-rail-muted: #a9cbbf;
+
+  --color-ground: #f1f4f2;
+  --color-surface: #ffffff;
+  --color-sunken: #e8edea;
+  --color-line: #d9e1dd;
+  --color-line-soft: #e9eeeb;
+  --color-steel-400: #a3b0ab;
+
+  --color-ink: #17231f;
+  --color-ink-2: #45554f;
+  --color-ink-3: #5f6e68;
+
+  --color-positive: #1b7650;
+  --color-negative: #b4372b;
+  --color-negative-soft: #fbeae7;
+  --color-warn: #7a5410;
+  --color-warn-soft: #fbf1d9;
+  --color-ok-soft: #e3f2ea;
+
+  --color-enamel-jade: #2a7f63;
+  --color-enamel-cobalt: #2f5fb3;
+  --color-enamel-rose: #b8476e;
+  --color-enamel-marigold: #e2a527;
+  --color-enamel-plum: #8a4fa0;
+  --color-enamel-teal: #1f7f8c;
+
+  /* Three columns (rail, ledger, new-bill panel) from common laptop widths up. */
+  --breakpoint-wide: 80rem;
+
+  --font-sans: var(--font-anuphan), "Noto Sans Thai", system-ui, sans-serif;
+
+  --radius-tier: 0.75rem;
+  --shadow-surface: 0 1px 2px rgb(18 73 61 / 0.06), 0 4px 16px -6px rgb(18 73 61 / 0.12);
+  --shadow-raised: 0 2px 4px rgb(18 73 61 / 0.08), 0 12px 32px -12px rgb(18 73 61 / 0.22);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  background: var(--color-ground);
+  color: var(--color-ink);
+  scrollbar-color: var(--color-steel-400) transparent;
+}
+
+body {
+  font-family: var(--font-sans);
+  /* Thai stacks vowels and tone marks above and below the line. */
+  line-height: 1.6;
+  caret-color: var(--color-enamel-jade);
+}
+
+::selection {
+  background: rgb(42 127 99 / 0.22);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-enamel-jade);
+  outline-offset: 2px;
+}
+
+.rail :focus-visible {
+  outline-color: var(--color-rail-text);
+}
+
+/* Every amount: tabular, right-aligned by its container. */
+.num {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+a {
+  text-underline-offset: 0.2em;
+}
+
+/* Over-assigned carrier: a hatched, ink-ringed rim — never a roommate colour. */
+.carrier-over {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgb(23 35 31 / 0.14) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+/* The carrier's tiers grow and shrink as amounts are typed. */
+.tier {
+  transition:
+    flex-grow 320ms var(--ease-out-expo),
+    background-color 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tier {
+    transition: none;
+  }
+}

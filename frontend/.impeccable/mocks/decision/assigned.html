@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font-family:Anuphan,sans-serif;background:#f3f5f2;color:#1d2a26;display:grid;grid-template-columns:248px 1fr 400px}
+.rail{background:#12493d;color:#e4efe9;padding:24px 16px;display:flex;flex-direction:column;gap:6px}
+.logo{font-weight:700;font-size:22px;color:#fff;margin:0 8px 24px}
+.rail h6{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#8fb8aa;margin:12px 8px 6px;font-weight:600}
+.hh{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;font-size:15px}
+.hh.on{background:#1d6152;color:#fff}
+.hh small{font-variant-numeric:tabular-nums;color:#a8cfc1}
+.me{margin-top:auto;display:flex;gap:10px;align-items:center;padding:12px;border-top:1px solid #2a6a5b}
+.dot{width:12px;height:12px;border-radius:50%}
+main{padding:28px 32px;display:flex;flex-direction:column;gap:20px}
+.top{display:flex;justify-content:space-between;align-items:flex-end}
+.top h1{font-size:28px;font-weight:700}
+.top p{color:#5b6b66;font-size:14px;margin-top:4px}
+.lang{display:flex;border:1px solid #c9d3cf;border-radius:999px;overflow:hidden;font-size:13px}
+.lang span{padding:6px 12px}.lang .on{background:#12493d;color:#fff}
+.hero{display:grid;grid-template-columns:1.1fr 1fr;gap:20px}
+.card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 1px 0 #dfe5e2}
+.card h3{font-size:13px;color:#5b6b66;font-weight:600}
+.big{font-size:44px;font-weight:700;color:#1f7a55;font-variant-numeric:tabular-nums;margin-top:6px}
+.sub{color:#5b6b66;font-size:14px}
+.bal{display:grid;gap:10px;margin-top:4px}
+.row{display:grid;grid-template-columns:90px 1fr 110px;align-items:center;gap:12px;font-size:14px}
+.bar{height:10px;background:#eef1ef;border-radius:5px;position:relative}
+.bar i{position:absolute;top:0;bottom:0;border-radius:5px}
+.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;color:#5b6b66;font-weight:600;font-size:12px;padding:8px 10px;border-bottom:1px solid #dfe5e2}
+td{padding:11px 10px;border-bottom:1px solid #edf1ef}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+.mini{display:flex;flex-direction:column;width:14px;height:28px;border-radius:4px;overflow:hidden;gap:1px}
+.panel{background:#fff;border-left:1px solid #dfe5e2;padding:28px 24px;display:flex;flex-direction:column;gap:14px}
+.panel h2{font-size:20px;font-weight:700}
+label{font-size:13px;font-weight:600;color:#3d4a46}
+.in{border:1px solid #c9d3cf;border-radius:10px;padding:10px 12px;font-size:15px;margin-top:4px}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:#eef1ef;border-radius:10px;padding:3px;font-size:14px}
+.seg span{text-align:center;padding:8px;border-radius:8px}.seg .on{background:#fff;font-weight:600}
+.stackwrap{display:flex;gap:18px;align-items:stretch}
+.carrier{width:120px;height:220px;display:flex;flex-direction:column;gap:3px;padding:6px;border-radius:18px;background:#d8dedb}
+.tier{border-radius:12px;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.gap{border:2px dashed #9aa8a3;border-radius:12px;color:#5b6b66;font-size:12px;display:flex;align-items:center;justify-content:center}
+.legend{display:grid;gap:8px;font-size:14px;align-content:center;flex:1}
+.legend div{display:flex;justify-content:space-between;align-items:center}
+.btn{margin-top:auto;background:#12493d;color:#fff;border-radius:12px;padding:14px;text-align:center;font-weight:600;opacity:.45}
+.warn{background:#fdf3dc;color:#7a5410;border-radius:10px;padding:10px 12px;font-size:13px}
+</style></head><body>
+<aside class="rail">
+ <div class="logo">SplitBill</div>
+ <h6>บ้านของฉัน · Households</h6>
+ <div class="hh on">คอนโดอารีย์ <small>+1,240.00</small></div>
+ <div class="hh">ห้องเช่าลาดพร้าว <small>−320.50</small></div>
+ <div class="hh">บ้านพ่อแม่ <small>0.00</small></div>
+ <div class="me"><span class="dot" style="background:#2f8f6f"></span><div><b>alice</b><div style="font-size:12px;color:#8fb8aa">ออกจากระบบ</div></div></div>
+</aside>
+<main>
+ <div class="top"><div><h1>คอนโดอารีย์</h1><p>3 roommates · 24 bills this month</p></div><div class="lang"><span class="on">ไทย</span><span>EN</span></div></div>
+ <div class="hero">
+  <div class="card"><h3>ยอดของคุณ · Your balance</h3><div class="big">+1,240.00</div><div class="sub">bob and carol owe you</div></div>
+  <div class="card"><h3>ยอดคงเหลือ · Balances</h3><div class="bal">
+   <div class="row"><span>alice</span><div class="bar"><i style="left:50%;width:42%;background:#2f8f6f"></i></div><span class="num" style="color:#1f7a55">+1,240.00</span></div>
+   <div class="row"><span>bob</span><div class="bar"><i style="right:50%;width:28%;background:#2f5fb3"></i></div><span class="num" style="color:#b23a2e">−820.00</span></div>
+   <div class="row"><span>carol</span><div class="bar"><i style="right:50%;width:14%;background:#d9483b"></i></div><span class="num" style="color:#b23a2e">−420.00</span></div>
+  </div></div>
+ </div>
+ <div class="card" style="flex:1">
+  <table><thead><tr><th></th><th>รายการ · Bill</th><th>Paid by</th><th>Split</th><th>Date</th><th class="r">THB</th></tr></thead><tbody>
+  <tr><td><div class="mini"><i style="flex:1;background:#2f8f6f"></i><i style="flex:1;background:#2f5fb3"></i><i style="flex:1;background:#d9483b"></i></div></td><td>ค่าไฟ ตุลาคม</td><td>alice</td><td>Equal · 3</td><td>12 พ.ย.</td><td class="r">1,842.75</td></tr>
+  <tr><td><div class="mini"><i style="flex:2;background:#2f8f6f"></i><i style="flex:1;background:#2f5fb3"></i><i style="flex:1;background:#d9483b"></i></div></td><td>ค่าเช่า พฤศจิกายน</td><td>alice</td><td>Exact · 3</td><td>1 พ.ย.</td><td class="r">18,000.00</td></tr>
+  <tr><td><div class="mini"><i style="flex:1;background:#2f8f6f"></i><i style="flex:1;background:#2f5fb3"></i></div></td><td>Internet True</td><td>bob</td><td>Equal · 2</td><td>28 ต.ค.</td><td class="r">599.00</td></tr>
+  <tr><td><div class="mini"><i style="flex:1;background:#2f8f6f"></i><i style="flex:1;background:#2f5fb3"></i><i style="flex:1;background:#d9483b"></i></div></td><td>Makro groceries</td><td>carol</td><td>Equal · 3</td><td>26 ต.ค.</td><td class="r">2,315.40</td></tr>
+  </tbody></table>
+ </div>
+</main>
+<aside class="panel">
+ <h2>บิลใหม่ · New bill</h2>
+ <div><label>รายการ</label><div class="in">ค่าน้ำ ตุลาคม</div></div>
+ <div><label>จำนวนเงิน (THB)</label><div class="in" style="font-variant-numeric:tabular-nums">1,000.00</div></div>
+ <div class="seg"><span>เท่ากัน · Equal</span><span class="on">ระบุเอง · Exact</span></div>
+ <div class="stackwrap">
+  <div class="carrier"><div class="tier" style="flex:50;background:#2f8f6f">500.00</div><div class="tier" style="flex:30;background:#2f5fb3">300.00</div><div class="gap" style="flex:20">200.00 left</div></div>
+  <div class="legend"><div><span>alice</span><b>500.00</b></div><div><span>bob</span><b>300.00</b></div><div><span>carol</span><b style="color:#9aa8a3">—</b></div></div>
+ </div>
+ <div class="warn">ยังเหลือ 200.00 ที่ยังไม่ได้แบ่ง · 200.00 still unassigned</div>
+ <div class="btn">บันทึกบิล · Save bill</div>
+</aside>
+</body></html>
