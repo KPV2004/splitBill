@@ -1,34 +1,95 @@
 /**
  * In-memory mock of the SplitBill backend contract (backend/README.md +
- * backend/AI_NOTES.md §4–§6) for developing and verifying the frontend while
- * the real backend endpoints are still landing. DEV TOOL ONLY — not part of
- * the app bundle.
+ * backend/AI_NOTES.md §4–§6, plus the proposed auth endpoints in
+ * AI_NOTES.md §4.1) for developing and verifying the frontend while the real
+ * backend endpoints are still landing. DEV TOOL ONLY — not part of the app
+ * bundle.
  *
  *   BACKEND_ORIGIN=http://127.0.0.1:9999 npm run dev
  *   … or: npm run mock   (listens on :9999)
  *
- * Implements: GET /health, GET /groups, GET /groups/{id},
+ * Implements: GET /health,
+ * POST /auth/register, POST /auth/login, POST /auth/logout, GET /auth/me,
+ * GET /groups, GET /groups/{id},
  * POST /groups/{id}/expenses (Idempotency-Key), GET /groups/{id}/expenses,
  * DELETE /groups/{id}/expenses/{id} (payer only), GET /groups/{id}/balances.
+ *
+ * Identity comes from the HttpOnly `sb_session` cookie set by login/register.
  * Money is string-in → integer cents → string-out, matching §4.1, including
  * the golden example (1000.00 among alice/bob/carol → 333.34/333.33/333.33).
  */
 
+import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 
 const PORT = Number(process.env.MOCK_PORT ?? 9999);
+const SESSION_COOKIE = "sb_session";
+const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
+/** Demo password for the seeded accounts. Mock only — never reuse it anywhere real. */
+const DEMO_PASSWORD = "splitbill123";
+
+const USERNAME_PATTERN = /^[a-z0-9._-]{3,32}$/;
+const MIN_PASSWORD_LENGTH = 8;
+
+function hashPassword(password) {
+  const salt = randomBytes(16);
+  return { salt, hash: scryptSync(password, salt, 32) };
+}
+
+function verifyPassword(password, record) {
+  const candidate = scryptSync(password, record.salt, 32);
+  return timingSafeEqual(candidate, record.hash);
+}
+
+/** @type {Map<string, {salt: Buffer; hash: Buffer}>} username → password record */
+const users = new Map(
+  ["alice", "bob", "carol", "dave"].map((name) => [name, hashPassword(DEMO_PASSWORD)]),
+);
+
+/** @type {Map<string, string>} session token → username */
+const sessions = new Map();
 
 const groups = [
-  { id: 1, name: "Bangkok Trip", members: ["alice", "bob", "carol"] },
-  { id: 2, name: "Office Lunch", members: ["alice", "bob"] },
-  { id: 3, name: "Chiang Mai 2026", members: ["bob", "carol", "dave"] },
+  { id: 1, name: "Ari Condo 12A", members: ["alice", "bob", "carol"] },
+  { id: 2, name: "Lat Phrao House", members: ["alice", "bob"] },
+  { id: 3, name: "Chiang Mai Flat", members: ["bob", "carol", "dave"] },
 ];
 
 /** @type {Map<number, Array<{id:number;description:string;paid_by:string;amount:string;split:object;created_at:string}>>} */
 const expensesByGroup = new Map([[1, []], [2, []], [3, []]]);
 let nextExpenseId = 1;
 
-/** @type {Map<string, {status:number;body:unknown}>} scoped per (group_id, key) — §4.6 */
+/** Demo bills so the ledger isn't empty on first run. */
+function seedExpense(groupId, daysAgo, description, paidBy, amount, split) {
+  const createdAt = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString();
+  expensesByGroup.get(groupId).push({
+    id: nextExpenseId++,
+    description,
+    paid_by: paidBy,
+    amount,
+    split,
+    created_at: createdAt,
+  });
+}
+seedExpense(1, 13, "Rent November", "alice", "18000.00", {
+  type: "exact",
+  shares: { alice: "7000.00", bob: "5500.00", carol: "5500.00" },
+});
+seedExpense(1, 9, "Internet (True 1Gbps)", "bob", "599.00", {
+  type: "equal",
+  members: ["alice", "bob", "carol"],
+});
+seedExpense(1, 4, "Makro groceries", "carol", "2315.40", {
+  type: "equal",
+  members: ["alice", "bob", "carol"],
+});
+seedExpense(1, 2, "Electricity October", "alice", "1842.75", {
+  type: "equal",
+  members: ["alice", "bob", "carol"],
+});
+seedExpense(2, 6, "Water bill", "bob", "212.00", { type: "equal", members: ["alice", "bob"] });
+
+/** @type {Map<string, {status:number;body:unknown;requestBody:string}>} scoped per (group_id, key) — §4.6 */
 const idempotencyStore = new Map();
 
 function fail(res, status, detail) {
@@ -36,10 +97,39 @@ function fail(res, status, detail) {
   return json(res, status, { detail });
 }
 
-function json(res, status, body) {
+function json(res, status, body, headers = {}) {
   const payload = JSON.stringify(body);
-  res.writeHead(status, { "Content-Type": "application/json" });
+  res.writeHead(status, { "Content-Type": "application/json", ...headers });
   res.end(payload);
+}
+
+function sessionCookie(token) {
+  return `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_MAX_AGE_SECONDS}`;
+}
+
+function clearedSessionCookie() {
+  return `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+}
+
+function readCookie(req, name) {
+  const header = req.headers.cookie;
+  if (typeof header !== "string") return undefined;
+  for (const part of header.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return rest.join("=");
+  }
+  return undefined;
+}
+
+function sessionUser(req) {
+  const token = readCookie(req, SESSION_COOKIE);
+  return token === undefined ? undefined : sessions.get(token);
+}
+
+function startSession(username) {
+  const token = randomBytes(24).toString("base64url");
+  sessions.set(token, username);
+  return token;
 }
 
 /** Parse "1234.5" → integer cents; null when malformed (§4.1). */
@@ -72,10 +162,65 @@ function readBody(req) {
   });
 }
 
+function parseJson(text) {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch {
+    return { ok: false };
+  }
+}
+
+async function handleAuth(req, res, path) {
+  if (path === "/auth/me") {
+    if (req.method !== "GET") return fail(res, 405, "Method not allowed.");
+    const username = sessionUser(req);
+    if (username === undefined) return fail(res, 401, "You are not signed in.");
+    return json(res, 200, { username });
+  }
+
+  if (path === "/auth/logout") {
+    if (req.method !== "POST") return fail(res, 405, "Method not allowed.");
+    const token = readCookie(req, SESSION_COOKIE);
+    if (token !== undefined) sessions.delete(token);
+    res.writeHead(204, { "Set-Cookie": clearedSessionCookie() });
+    return res.end();
+  }
+
+  if (path !== "/auth/login" && path !== "/auth/register") return fail(res, 404, "Not Found");
+  if (req.method !== "POST") return fail(res, 405, "Method not allowed.");
+
+  const parsed = parseJson(await readBody(req));
+  if (!parsed.ok) return fail(res, 422, "Request body must be valid JSON.");
+  const username = typeof parsed.value?.username === "string" ? parsed.value.username.trim() : "";
+  const password = typeof parsed.value?.password === "string" ? parsed.value.password : "";
+
+  if (path === "/auth/login") {
+    const record = users.get(username);
+    if (record === undefined || !verifyPassword(password, record)) {
+      return fail(res, 401, "Incorrect username or password.");
+    }
+    return json(res, 200, { username }, { "Set-Cookie": sessionCookie(startSession(username)) });
+  }
+
+  // /auth/register
+  if (!USERNAME_PATTERN.test(username)) {
+    return fail(
+      res,
+      400,
+      "Usernames are 3–32 characters: lowercase letters, numbers, dots, dashes or underscores.",
+    );
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return fail(res, 400, `Passwords need at least ${MIN_PASSWORD_LENGTH} characters.`);
+  }
+  if (users.has(username)) return fail(res, 409, "That username is already taken.");
+  users.set(username, hashPassword(password));
+  return json(res, 201, { username }, { "Set-Cookie": sessionCookie(startSession(username)) });
+}
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   const path = url.pathname;
-  const user = req.headers["x-user"];
   res.on("finish", () => {
     const note = res.statusCode >= 400 ? ` (${res._mockDetail ?? ""})` : "";
     console.log(`${req.method} ${path} → ${res.statusCode}${note}`);
@@ -85,7 +230,10 @@ const server = createServer(async (req, res) => {
     return json(res, 200, { status: "ok", database: "up (mock)", env: "mock" });
   }
 
-  if (user === undefined) return fail(res, 401, "Missing X-User header.");
+  if (path.startsWith("/auth/")) return handleAuth(req, res, path);
+
+  const user = sessionUser(req);
+  if (user === undefined) return fail(res, 401, "You are not signed in.");
 
   if (path === "/groups") {
     return json(res, 200, groups.filter((group) => group.members.includes(user)));
@@ -159,12 +307,9 @@ const server = createServer(async (req, res) => {
         return json(res, cached.status, cached.body); // replay original response (§4.6)
       }
 
-      let body;
-      try {
-        body = JSON.parse(bodyText);
-      } catch {
-        return fail(res, 422, "Request body must be valid JSON.");
-      }
+      const parsed = parseJson(bodyText);
+      if (!parsed.ok) return fail(res, 422, "Request body must be valid JSON.");
+      const body = parsed.value;
       const totalCents = toCents(body?.amount);
       if (totalCents === null || totalCents <= 0) {
         return fail(res, 400, "Amount must be a positive string amount like \"250.50\".");
@@ -237,5 +382,6 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`Mock SplitBill backend on http://127.0.0.1:${PORT} (users: alice, bob, carol, dave)`);
+  console.log(`Mock SplitBill backend on http://127.0.0.1:${PORT}`);
+  console.log(`Demo accounts: alice, bob, carol, dave — password "${DEMO_PASSWORD}"`);
 });

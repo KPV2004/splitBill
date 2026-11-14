@@ -1,7 +1,13 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { BalancesPanel } from "@/components/BalancesPanel";
+import { Banner } from "@/components/Banner";
+import { ExpenseForm } from "@/components/ExpenseForm";
+import { ExpenseList } from "@/components/ExpenseList";
+import { HouseholdRail } from "@/components/HouseholdRail";
 import {
   ApiError,
   createExpense,
@@ -15,261 +21,297 @@ import {
   type ExpensePayload,
   type Group,
 } from "@/lib/api";
-import { ErrorBanner, SuccessBanner } from "@/components/Banner";
-import { UserGroupPicker } from "@/components/UserGroupPicker";
-import { ExpenseForm } from "@/components/ExpenseForm";
-import { BalancesPanel } from "@/components/BalancesPanel";
-import { ExpenseList } from "@/components/ExpenseList";
-
-/** Plain-language message for anything thrown during a request. */
-function toMessage(error: unknown, fallback = "Something went wrong. Please try again."): string {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
-}
-
-/** Stable key identifying "data for this user+group", used by stale-response guards. */
-function groupRequestKey(user: string, id: number): string {
-  return `${user}:${id}`;
-}
+import { useAuth } from "@/lib/auth";
+import { errorText, useI18n } from "@/lib/i18n";
 
 /**
- * SplitBill — a single page implementing the split-bill flow against the
- * backend API (backend/README.md):
- *
- * 1. user + group selection (only the selected user's groups are listed),
- * 2. expense entry with equal/exact splits,
- * 3. live split preview (lib/split.ts mirrors the backend exactly),
- * 4. plain-language API error handling,
- * 5. balances + expense list.
- *
- * The page is fully event-driven: every fetch starts from a user action
- * (show groups, pick a group, add/delete an expense), and stale responses are
- * discarded with sequence guards. All requests go through a same-origin
- * rewrite (`/api/*` → backend, see next.config.ts) carrying the `X-User`
- * header; expense creation also sends a fresh `Idempotency-Key` per attempt.
+ * SplitBill's household ledger. Signed-out visitors are sent to /login; a
+ * signed-in user gets their households on the rail, the selected household's
+ * balances and bills in the centre, and the new-bill panel beside them.
  */
 export default function HomePage() {
-  /* --- user & groups --- */
-  const [userInput, setUserInput] = useState("");
-  const [activeUser, setActiveUser] = useState<string | null>(null);
-  const [knownUsers, setKnownUsers] = useState<string[]>([]);
-  const [groups, setGroups] = useState<Group[] | null>(null);
-  const [groupsLoading, setGroupsLoading] = useState(false);
-  const [groupsError, setGroupsError] = useState<string | null>(null);
+  const { state, logout, refresh } = useAuth();
+  const { t } = useI18n();
+  const router = useRouter();
 
-  /* --- selected group --- */
+  useEffect(() => {
+    if (state.status === "signed-out") router.replace("/login");
+  }, [state.status, router]);
+
+  if (state.status === "signed-in") {
+    // Keyed by user so nothing from a previous session survives a switch.
+    return <Ledger key={state.user.username} username={state.user.username} onUnauthorized={refresh} onSignOut={logout} />;
+  }
+
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-ground px-5">
+      {state.status === "error" ? (
+        <div className="grid max-w-md gap-4 text-center">
+          <Banner message={errorText(state.error, t)} />
+          <button
+            type="button"
+            onClick={refresh}
+            className="justify-self-center rounded-xl bg-rail px-5 py-2.5 text-sm font-semibold text-rail-text hover:bg-rail-hover"
+          >
+            {t("common.retry")}
+          </button>
+        </div>
+      ) : (
+        <p role="status" className="text-sm text-ink-3">
+          {t("auth.checking")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+interface LedgerProps {
+  username: string;
+  /** A request came back 401: the session is gone. */
+  onUnauthorized: () => void;
+  onSignOut: () => Promise<void>;
+}
+
+function Ledger({ username, onUnauthorized, onSignOut }: LedgerProps) {
+  const { t } = useI18n();
+
+  const [groups, setGroups] = useState<Group[] | null>(null);
+  const [groupsError, setGroupsError] = useState<unknown>(null);
+  const [myBalances, setMyBalances] = useState<ReadonlyMap<number, number>>(new Map());
+
   const [groupId, setGroupId] = useState<number | null>(null);
   const [members, setMembers] = useState<string[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [balances, setBalances] = useState<BalanceEntry[]>([]);
   const [groupLoading, setGroupLoading] = useState(false);
-  const [groupError, setGroupError] = useState<string | null>(null);
+  const [groupError, setGroupError] = useState<unknown>(null);
 
-  /* --- mutations --- */
   const [submitting, setSubmitting] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  // Errors and notices are kept untranslated so a language switch re-renders them.
+  const [actionError, setActionError] = useState<unknown>(null);
+  const [notice, setNotice] = useState<"notice.saved" | "notice.deleted" | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
 
-  /* Sequence guards: only the latest user/group request may update state.
-     Keys are `${user}:${groupId}` strings so guards compare by value. */
-  const latestUserRequestRef = useRef<string | null>(null);
-  const latestGroupRequestRef = useRef<string | null>(null);
+  /* Only the latest household request may update state. */
+  const latestGroupRef = useRef<number | null>(null);
 
-  /* Requirement 1: user + group selection — the API lists only the groups of
-     the user sent in the X-User header, so only those are shown. */
-  const loadUser = useCallback(() => {
-    const name = userInput.trim();
-    if (name === "") {
-      setActionError("Enter a user name first — the API identifies you by that name.");
-      return;
-    }
-    setActionError(null);
-    setNotice(null);
-    setKnownUsers((previous) => (previous.includes(name) ? previous : [...previous, name]));
-    setActiveUser(name);
-    setGroups(null);
-    setGroupId(null);
-    setGroupsError(null);
-    setGroupError(null);
-    setGroupsLoading(true);
-    latestUserRequestRef.current = name;
-    fetchGroups(name)
-      .then((loaded) => {
-        if (latestUserRequestRef.current !== name) return; // stale response
-        setGroups(loaded);
-        setGroupsLoading(false);
-      })
-      .catch((error: unknown) => {
-        if (latestUserRequestRef.current !== name) return;
-        setGroupsError(toMessage(error, "Could not load your groups."));
-        setGroupsLoading(false);
-      });
-  }, [userInput]);
+  /** Pass a failed request's error through; a 401 also ends the session. */
+  const describe = useCallback(
+    (error: unknown): unknown => {
+      if (error instanceof ApiError && error.status === 401) onUnauthorized();
+      return error;
+    },
+    [onUnauthorized],
+  );
+
+  const rememberMyBalance = useCallback(
+    (id: number, loaded: BalanceEntry[]) => {
+      const mine = loaded.find((entry) => entry.member === username)?.cents ?? 0;
+      setMyBalances((previous) => new Map(previous).set(id, mine));
+    },
+    [username],
+  );
 
   const selectGroup = useCallback(
     (id: number) => {
-      if (activeUser === null) return;
+      latestGroupRef.current = id;
       setGroupId(id);
-      setMembers([]);
-      setExpenses([]);
-      setBalances([]);
+      setGroupLoading(true);
       setGroupError(null);
       setActionError(null);
       setNotice(null);
-      setGroupLoading(true);
-      const requestKey = groupRequestKey(activeUser, id);
-      latestGroupRequestRef.current = requestKey;
-      const loadDetail = fetchGroup(activeUser, id)
-        .then((group) => {
-          if (latestGroupRequestRef.current !== requestKey) return;
+      Promise.all([fetchGroup(id), fetchExpenses(id), fetchBalances(id)])
+        .then(([group, loadedExpenses, loadedBalances]) => {
+          if (latestGroupRef.current !== id) return;
           setMembers(group.members ?? []);
-        })
-        .catch((error: unknown) => {
-          if (latestGroupRequestRef.current !== requestKey) return;
-          setGroupError(toMessage(error, "Could not load this group."));
-        });
-      const loadLists = Promise.all([fetchExpenses(activeUser, id), fetchBalances(activeUser, id)])
-        .then(([loadedExpenses, loadedBalances]) => {
-          if (latestGroupRequestRef.current !== requestKey) return;
           setExpenses(loadedExpenses);
           setBalances(loadedBalances);
+          rememberMyBalance(id, loadedBalances);
         })
         .catch((error: unknown) => {
-          if (latestGroupRequestRef.current !== requestKey) return;
-          setGroupError(toMessage(error, "Could not load expenses and balances for this group."));
+          if (latestGroupRef.current === id) setGroupError(describe(error));
+        })
+        .finally(() => {
+          if (latestGroupRef.current === id) setGroupLoading(false);
         });
-      Promise.all([loadDetail, loadLists]).finally(() => {
-        if (latestGroupRequestRef.current === requestKey) setGroupLoading(false);
-      });
     },
-    [activeUser],
+    [describe, rememberMyBalance],
   );
 
-  /* Refetch expenses + balances after a successful mutation. Returns false
-     when the user has since switched group (response would be stale). */
-  const refreshGroupData = useCallback(async (user: string, id: number): Promise<boolean> => {
-    const requestKey = groupRequestKey(user, id);
-    const [loadedExpenses, loadedBalances] = await Promise.all([fetchExpenses(user, id), fetchBalances(user, id)]);
-    if (latestGroupRequestRef.current !== requestKey) return false;
-    setExpenses(loadedExpenses);
-    setBalances(loadedBalances);
-    return true;
-  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    fetchGroups()
+      .then((loaded) => {
+        if (cancelled) return;
+        setGroups(loaded);
+        if (loaded.length > 0) selectGroup(loaded[0].id);
+        // Your standing in every household, for the rail.
+        for (const group of loaded) {
+          fetchBalances(group.id)
+            .then((loadedBalances) => {
+              if (!cancelled) rememberMyBalance(group.id, loadedBalances);
+            })
+            .catch(() => {
+              // The rail just omits that figure; the household view reports errors.
+            });
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setGroupsError(describe(error));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [describe, rememberMyBalance, selectGroup]);
 
-  /* Requirement 4: API errors surface in plain language via the banner. */
-  const handleCreateExpense = useCallback(
-    async (payload: ExpensePayload): Promise<boolean> => {
-      if (activeUser === null || groupId === null) return false;
+  /** Refetch bills + balances after a change; skipped if the user moved on. */
+  const refreshGroup = useCallback(
+    async (id: number) => {
+      const [loadedExpenses, loadedBalances] = await Promise.all([fetchExpenses(id), fetchBalances(id)]);
+      rememberMyBalance(id, loadedBalances);
+      if (latestGroupRef.current !== id) return;
+      setExpenses(loadedExpenses);
+      setBalances(loadedBalances);
+    },
+    [rememberMyBalance],
+  );
+
+  const handleCreate = useCallback(
+    async (payload: ExpensePayload, idempotencyKey: string): Promise<boolean> => {
+      if (groupId === null) return false;
       setSubmitting(true);
       setActionError(null);
       setNotice(null);
       try {
-        // Fresh idempotency key per submission attempt (AI_NOTES.md §4.6):
-        // a retried click never silently duplicates an expense.
-        await createExpense(activeUser, groupId, payload, crypto.randomUUID());
-        await refreshGroupData(activeUser, groupId);
-        setNotice("Expense recorded.");
+        await createExpense(groupId, payload, idempotencyKey);
+        await refreshGroup(groupId);
+        setNotice("notice.saved");
         return true;
       } catch (error: unknown) {
-        setActionError(toMessage(error));
+        setActionError(describe(error));
         return false;
       } finally {
         setSubmitting(false);
       }
     },
-    [activeUser, groupId, refreshGroupData],
+    [groupId, refreshGroup, describe],
   );
 
-  const handleDeleteExpense = useCallback(
-    async (expenseId: number): Promise<void> => {
-      if (activeUser === null || groupId === null) return;
+  const handleDelete = useCallback(
+    async (expenseId: number) => {
+      if (groupId === null) return;
       setPendingDeleteId(expenseId);
       setActionError(null);
       setNotice(null);
       try {
-        await deleteExpense(activeUser, groupId, expenseId);
-        await refreshGroupData(activeUser, groupId);
-        setNotice("Expense deleted.");
+        await deleteExpense(groupId, expenseId);
+        await refreshGroup(groupId);
+        setNotice("notice.deleted");
       } catch (error: unknown) {
-        setActionError(toMessage(error));
+        setActionError(describe(error));
       } finally {
         setPendingDeleteId(null);
       }
     },
-    [activeUser, groupId, refreshGroupData],
+    [groupId, refreshGroup, describe],
   );
 
-  const groupSelected = activeUser !== null && groupId !== null;
+  const handleSignOut = useCallback(() => {
+    setSigningOut(true);
+    void onSignOut();
+  }, [onSignOut]);
+
+  const group = groups?.find((candidate) => candidate.id === groupId) ?? null;
+  const ready = group !== null && !groupLoading && groupError === null;
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">SplitBill</h1>
-        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-          Split group expenses in THB — every amount is computed in integer satang, never floats.
-        </p>
-      </header>
-
-      <UserGroupPicker
-        userInput={userInput}
-        onUserInputChange={setUserInput}
-        knownUsers={knownUsers}
-        activeUser={activeUser}
-        onLoadUser={loadUser}
-        userLoading={groupsLoading}
+    <div className="min-h-dvh bg-ground lg:grid lg:grid-cols-[15.5rem_minmax(0,1fr)]">
+      <HouseholdRail
+        username={username}
         groups={groups}
-        groupsLoading={groupsLoading}
-        groupsError={groupsError}
+        myBalances={myBalances}
         selectedGroupId={groupId}
         onSelectGroup={selectGroup}
+        onSignOut={handleSignOut}
+        signingOut={signingOut}
       />
 
-      <div className="mt-4 grid gap-3" aria-live="polite">
-        {actionError !== null && <ErrorBanner message={actionError} onDismiss={() => setActionError(null)} />}
-        {notice !== null && <SuccessBanner message={notice} onDismiss={() => setNotice(null)} />}
-      </div>
-
-      {activeUser === null && (
-        <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">
-          Enter a user name and show their groups to begin. Try <code className="font-mono">alice</code>.
-        </p>
-      )}
-
-      {groupSelected && groupLoading && (
-        <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400" role="status">
-          Loading group…
-        </p>
-      )}
-
-      {groupSelected && !groupLoading && groupError !== null && (
-        <div className="mt-4">
-          <ErrorBanner message={groupError} onDismiss={() => setGroupError(null)} />
-        </div>
-      )}
-
-      {groupSelected && !groupLoading && groupError === null && (
-        <section className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-          {/* Remounted per user+group so form defaults reset on context change. */}
-          <ExpenseForm
-            key={`${activeUser}-${groupId}`}
-            members={members}
-            currentUser={activeUser}
-            submitting={submitting}
-            onSubmit={handleCreateExpense}
-          />
-          <div className="grid gap-4">
-            <BalancesPanel balances={balances} currentUser={activeUser} />
-            <ExpenseList
-              expenses={expenses}
-              currentUser={activeUser}
-              pendingDeleteId={pendingDeleteId}
-              onDelete={handleDeleteExpense}
-            />
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start items-start gap-5 px-5 py-6 sm:px-8 lg:py-8 wide:grid-cols-[minmax(0,1fr)_clamp(21rem,26vw,25rem)] wide:gap-6">
+        {groupsError !== null ? (
+          <div className="wide:col-span-2">
+            <Banner message={errorText(groupsError, t)} />
           </div>
-        </section>
-      )}
-    </main>
+        ) : groups !== null && groups.length === 0 ? (
+          <section className="max-w-xl rounded-2xl bg-surface p-8 shadow-surface wide:col-span-2">
+            <h1 className="text-xl font-bold text-ink">{t("home.noHouseholdsTitle")}</h1>
+            <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-2">{t("home.noHouseholdsBody")}</p>
+          </section>
+        ) : (
+          <>
+            {/*
+              Below `wide` everything is one column: header, banners, balances,
+              new bill, bills. At `wide` the ledger becomes its own column and
+              the new-bill panel sits beside it, so neither stretches the other.
+            */}
+            <div className="contents wide:flex wide:min-w-0 wide:flex-col wide:gap-5">
+              <header>
+                <h1 className="text-[1.75rem] leading-tight font-bold tracking-tight text-ink">
+                  {group?.name ?? t("common.loading")}
+                </h1>
+                {ready && (
+                  <p className="mt-1 text-sm text-ink-3">
+                    {t("household.roommates", { n: members.length })} · {t("household.bills", { n: expenses.length })}
+                  </p>
+                )}
+              </header>
+
+              {(actionError !== null || notice !== null || groupError !== null) && (
+                <div className="grid gap-2" aria-live="polite">
+                  {groupError !== null && <Banner message={errorText(groupError, t)} />}
+                  {actionError !== null && (
+                    <Banner message={errorText(actionError, t)} onDismiss={() => setActionError(null)} />
+                  )}
+                  {notice !== null && <Banner tone="success" message={t(notice)} onDismiss={() => setNotice(null)} />}
+                </div>
+              )}
+
+              {groupLoading && (
+                <p role="status" className="text-sm text-ink-3">
+                  {t("common.loading")}
+                </p>
+              )}
+
+              {ready && <BalancesPanel balances={balances} members={members} currentUser={username} />}
+
+              {ready && (
+                <div className="order-2 wide:order-none">
+                  <ExpenseList
+                    expenses={expenses}
+                    members={members}
+                    currentUser={username}
+                    pendingDeleteId={pendingDeleteId}
+                    onDelete={handleDelete}
+                  />
+                </div>
+              )}
+            </div>
+
+            {ready && (
+              <section className="@container order-1 rounded-2xl bg-surface p-6 shadow-raised wide:sticky wide:top-8 wide:order-none">
+                {/* Remounted per household so the draft resets on switch. */}
+                <ExpenseForm
+                  key={groupId}
+                  members={members}
+                  currentUser={username}
+                  submitting={submitting}
+                  onSubmit={handleCreate}
+                />
+              </section>
+            )}
+          </>
+        )}
+      </div>
+    </div>
   );
 }

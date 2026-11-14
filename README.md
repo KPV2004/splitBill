@@ -44,7 +44,8 @@ graph LR
 ```
 
 The browser only talks to the Next.js server. Next rewrites `/api/*` to the backend, so no CORS
-setup is needed in development. The `X-User` and `Idempotency-Key` headers pass through as-is.
+setup is needed in development. The session cookie and the `Idempotency-Key` header pass through
+as-is.
 
 ## Quick start
 
@@ -61,7 +62,8 @@ npm run mock                                   # terminal 1: mock API on :9999
 BACKEND_ORIGIN=http://127.0.0.1:9999 npm run dev   # terminal 2: app on :3000
 ```
 
-Open http://localhost:3000 and enter `alice`, `bob`, `carol` or `dave` as the user.
+Open http://localhost:3000 and sign in as `alice`, `bob`, `carol` or `dave` (password
+`splitbill123`, mock only), or create an account.
 
 ### Option B — full stack
 
@@ -86,7 +88,8 @@ Check the API with `curl http://127.0.0.1:8000/health`.
 
 ## Using the app
 
-1. **Choose a user.** Your name goes in the `X-User` header; you only see your own groups.
+1. **Sign in or create an account.** You only see the households you belong to. Switch between
+   Thai and English at any time.
 2. **Pick a group.**
 3. **Add an expense:** description, amount, who paid, and the split:
    - **Equal** among the members you tick. Leftover satang go one at a time to members in list
@@ -98,7 +101,9 @@ Check the API with `curl http://127.0.0.1:8000/health`.
 
 ## API overview
 
-All endpoints except `/health` need the `X-User` header. Money is always a string with 2
+All endpoints except `/health` and `/auth/*` need a signed-in session. The frontend and mock use
+an HttpOnly session cookie ([AI_NOTES.md §4.1](AI_NOTES.md)); the backend currently specifies a
+plain `X-User` header until that change is approved. Money is always a string with 2
 decimals (`"1000.00"`). Errors are always `{"detail": "<message>"}`.
 
 | Method | Path | Description |
@@ -111,7 +116,7 @@ decimals (`"1000.00"`). Errors are always `{"detail": "<message>"}`.
 | DELETE | `/groups/{group_id}/expenses/{expense_id}` | Delete an expense (payer only) |
 | GET | `/groups/{group_id}/balances` | Net balance per member |
 
-Status codes: `401` no `X-User` · `404` unknown group or expense · `403` not a member / not the
+Status codes: `401` not signed in · `404` unknown group or expense · `403` not a member / not the
 payer · `400` business rule broken or `Idempotency-Key` missing · `409` key reused with a
 different body · `422` malformed request.
 

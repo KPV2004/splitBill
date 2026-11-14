@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font-family:system-ui,sans-serif;background:#f1f5f9;color:#0f172a;display:grid;grid-template-columns:240px 1fr}
+aside{background:#fff;border-right:1px solid #e2e8f0;padding:24px 16px}
+aside b{font-size:20px;display:block;margin-bottom:24px;color:#10b981}
+.g{padding:10px 12px;border-radius:8px;font-size:15px}.g.on{background:#ecfdf5;color:#047857;font-weight:600}
+main{padding:32px;display:grid;gap:20px;align-content:start}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.c{background:#fff;border-radius:12px;padding:20px;border:1px solid #e2e8f0}
+.c h4{font-size:13px;color:#64748b}.c p{font-size:30px;font-weight:700;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;color:#64748b;font-size:12px;padding:8px;border-bottom:1px solid #e2e8f0}
+td{padding:12px 8px;border-bottom:1px solid #f1f5f9}.r{text-align:right}
+.btn{justify-self:end;background:#10b981;color:#fff;padding:10px 18px;border-radius:8px;font-weight:600}
+</style></head><body>
+<aside><b>SplitBill</b><div class="g on">Ari Condo</div><div class="g">Lat Phrao Room</div><div class="g">Parents' House</div></aside>
+<main><div class="btn">+ Add expense</div>
+<div class="cards"><div class="c"><h4>You are owed</h4><p style="color:#10b981">฿1,240.00</p></div><div class="c"><h4>You owe</h4><p style="color:#ef4444">฿0.00</p></div><div class="c"><h4>Total spent</h4><p>฿22,757.15</p></div></div>
+<div class="c"><table><thead><tr><th>Expense</th><th>Paid by</th><th>Split</th><th class="r">Amount</th></tr></thead><tbody>
+<tr><td>Electricity October</td><td>alice</td><td>Equal · 3</td><td class="r">1,842.75</td></tr>
+<tr><td>Rent November</td><td>alice</td><td>Exact · 3</td><td class="r">18,000.00</td></tr>
+<tr><td>Internet</td><td>bob</td><td>Equal · 2</td><td class="r">599.00</td></tr>
+<tr><td>Groceries</td><td>carol</td><td>Equal · 3</td><td class="r">2,315.40</td></tr>
+</tbody></table></div></main></body></html>

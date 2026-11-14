@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font-family:Anuphan,sans-serif;background:#f2f4f6;color:#1b1f24}
+header{height:64px;background:#1b1f24;color:#fff;display:flex;align-items:center;gap:28px;padding:0 32px}
+header b{font-size:20px}
+.tab{display:flex;align-items:center;gap:8px;font-size:15px;color:#c7ccd2;padding:20px 0}
+.tab.on{color:#fff;border-bottom:4px solid #5fae3b}
+.sw{width:22px;height:8px;border-radius:4px}
+.sp{margin-left:auto;font-size:14px;color:#c7ccd2}
+main{padding:28px 32px;display:grid;gap:20px}
+.panel{background:#fff;border-radius:6px;padding:24px}
+.panel h3{font-size:13px;color:#5c6670}
+.line{position:relative;height:150px;margin-top:20px}
+.track{position:absolute;left:40px;right:40px;top:50px;height:12px;background:#5fae3b;border-radius:6px}
+.st{position:absolute;top:36px;width:200px;text-align:center;transform:translateX(-50%)}
+.st i{display:block;width:40px;height:40px;border-radius:50%;background:#fff;border:6px solid #5fae3b;margin:0 auto}
+.st .th{font-weight:700;margin-top:10px}
+.st .en{font-size:12px;color:#5c6670}
+.st .v{font-weight:700;font-variant-numeric:tabular-nums;margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;color:#5c6670;padding:8px;border-bottom:2px solid #1b1f24}
+td{padding:12px 8px;border-bottom:1px solid #e3e7eb}
+.r{text-align:right;font-variant-numeric:tabular-nums}
+.cols{display:grid;grid-template-columns:1fr 380px;gap:20px}
+.in{border:1px solid #cfd5db;border-radius:4px;padding:10px;margin-top:6px;font-size:15px}
+.btn{background:#1a5fa8;color:#fff;padding:12px;border-radius:4px;text-align:center;font-weight:600;margin-top:16px}
+</style></head><body>
+<header><b>SplitBill</b>
+ <div class="tab on"><span class="sw" style="background:#5fae3b"></span>คอนโดอารีย์ <small style="color:#9aa3ab">Ari Condo</small></div>
+ <div class="tab"><span class="sw" style="background:#1a5fa8"></span>ห้องเช่าลาดพร้าว</div>
+ <div class="tab"><span class="sw" style="background:#c2a14d"></span>บ้านพ่อแม่</div>
+ <span class="sp">ไทย / EN · alice</span></header>
+<main>
+ <div class="panel"><h3>ยอดคงเหลือ · Balances on this line</h3>
+  <div class="line"><div class="track"></div>
+   <div class="st" style="left:15%"><i></i><div class="th">alice</div><div class="en">ได้รับคืน · is owed</div><div class="v" style="color:#2d7d1f">+1,240.00</div></div>
+   <div class="st" style="left:50%"><i></i><div class="th">bob</div><div class="en">ต้องจ่าย · owes</div><div class="v" style="color:#b3261e">−820.00</div></div>
+   <div class="st" style="left:85%"><i></i><div class="th">carol</div><div class="en">ต้องจ่าย · owes</div><div class="v" style="color:#b3261e">−420.00</div></div>
+  </div></div>
+ <div class="cols">
+  <div class="panel"><table><thead><tr><th>รายการ · Bill</th><th>Paid by</th><th>Split</th><th class="r">THB</th></tr></thead><tbody>
+   <tr><td>ค่าไฟ ตุลาคม</td><td>alice</td><td>Equal · 3</td><td class="r">1,842.75</td></tr>
+   <tr><td>ค่าเช่า พฤศจิกายน</td><td>alice</td><td>Exact · 3</td><td class="r">18,000.00</td></tr>
+   <tr><td>Internet True</td><td>bob</td><td>Equal · 2</td><td class="r">599.00</td></tr>
+   <tr><td>Makro groceries</td><td>carol</td><td>Equal · 3</td><td class="r">2,315.40</td></tr>
+  </tbody></table></div>
+  <div class="panel"><h3>บิลใหม่ · New bill</h3><div class="in">ค่าน้ำ ตุลาคม</div><div class="in">1,000.00</div><div class="in">Equal · alice, bob, carol</div><div class="btn">บันทึก · Save</div></div>
+ </div>
+</main></body></html>

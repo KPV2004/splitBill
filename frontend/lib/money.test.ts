@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { equalSplitCents, formatCents, parseAmountCents, parseSignedCents, sumCents } from "./money";
+import {
+  equalSplitCents,
+  formatCents,
+  parseAmountCents,
+  parseSignedCents,
+  serializeCents,
+  sumCents,
+} from "./money";
 
 /** Parse helper for tests that already know the amount is valid. */
 function centsOf(raw: string): number {
@@ -99,5 +106,12 @@ describe("equalSplitCents", () => {
   it("handles zero totals and empty member lists", () => {
     expect(equalSplitCents(0, 3)).toEqual([0, 0, 0]);
     expect(equalSplitCents(10000, 0)).toEqual([]);
+  });
+});
+
+describe("wire format vs display format", () => {
+  it("serializes amounts of 1,000 or more without thousands separators", () => {
+    expect(serializeCents(100000)).toBe("1000.00");
+    expect(formatCents(100000)).toBe("1,000.00");
   });
 });

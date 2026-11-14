@@ -50,36 +50,33 @@ Neither folder is a git repository yet (nor is the root) — see Phase 0.
 
 Checks: `uv run pytest` → 1 passed · `uv run ruff check .` → clean.
 
-### 2.2 Frontend — feature-complete UI against a mock
+### 2.2 Frontend — redesigned, with login/register, against a mock
+
+Branch `feature/auth-and-redesign`. Design record: `frontend/PRODUCT.md`,
+`frontend/.impeccable/surfaces/app-page-tsx.md` (the "Pinto" direction).
 
 | Area | Status |
 |---|---|
-| `app/page.tsx` — single client page: user → groups → group detail, stale-response guards | ✅ |
-| `lib/api.ts` — typed client, `X-User` / `Idempotency-Key`, tolerant response normalizers, plain-language errors | ✅ |
-| `lib/money.ts` — integer-cent parse/format/serialize, equal split mirroring backend | ✅ |
-| `lib/split.ts` — live equal/exact split preview | ⚠️ **broken** (see §3) |
-| Components: `UserGroupPicker`, `ExpenseForm`, `BalancesPanel`, `ExpenseList`, `Banner` | ✅ |
-| `scripts/mock-backend.mjs` — in-memory implementation of the full contract on :9999 | ✅ |
-| Proxy: `next.config.ts` rewrites `/api/*` → `BACKEND_ORIGIN` (default `http://127.0.0.1:8000`) | ✅ |
-| Tests: Vitest on `lib/` only (no component tests) | ⚠️ 39 pass / **1 fail** |
-
-Checks: `npx tsc --noEmit` → **1 error** · `npx vitest run` → **1 failing test**.
+| `/login`, `/register` (`components/AuthScreen.tsx`) — validation mirrors backend rules | ✅ |
+| `/` household ledger (`app/page.tsx`): green household rail, balances, bills, new-bill panel | ✅ |
+| Thai / English switch (`lib/i18n.tsx`), saved per browser | ✅ |
+| Session state (`lib/auth.tsx`) — HttpOnly cookie, `GET /auth/me` on load, 401 → back to login | ✅ |
+| `lib/api.ts` — cookie auth (no `X-User`), `Idempotency-Key`, tolerant normalizers | ✅ |
+| `lib/money.ts`, `lib/split.ts` — integer satang, live equal/exact preview | ✅ |
+| `scripts/mock-backend.mjs` — full contract **plus auth** on :9999, demo bills seeded | ✅ |
+| Tests: Vitest on `lib/` only (no component tests) | ✅ 41 pass |
+| Dark theme | ❌ not in scope yet |
 
 ---
 
 ## 3. Known bugs (fix before anything else)
 
-1. **`frontend/lib/split.ts:95` — `formatCents` is not imported** (TS2304; breaks `exactPayloadShares`
-   and its test). It must use the already-imported **`serializeCents`**, not `formatCents`.
-2. **Wrong wire format for amounts ≥ 1,000.** `ExpenseForm.tsx` sends
-   `amount: formatCents(amount.cents)`; `formatCents` is display-only and adds thousands
-   separators (`"1,000.00"`). The backend contract is `"1000.00"` → the golden example would be
-   rejected with 400. Use `serializeCents` for every value sent to the API (amount and exact shares).
-   Add a test that the payload for 1000.00 is `"1000.00"`.
-3. **Idempotency key is regenerated per click** (`page.tsx` `handleCreateExpense`). If a request
-   times out after the server stored it, the user's retry gets a new key and creates a duplicate.
-   Better: one key per *draft* (create when the form is fresh, keep it across retries, rotate it
-   only after a successful submit or when the payload changes).
+1. ~~`frontend/lib/split.ts` used `formatCents` without importing it~~ — fixed on
+   `feature/auth-and-redesign` (now `serializeCents`).
+2. ~~Amounts ≥ 1,000 sent as `"1,000.00"`~~ — fixed; the form sends `serializeCents` output, with a
+   regression test.
+3. ~~Idempotency key regenerated per click~~ — fixed; one key per draft, reused on retry, rotated
+   after success or when the payload changes (`components/ExpenseForm.tsx`).
 4. Minor: `status.HTTP_422_UNPROCESSABLE_ENTITY` is deprecated in current Starlette (the pytest
    warning) — switch to `HTTP_422_UNPROCESSABLE_CONTENT`.
 5. Minor: `Makefile` `db-shell` hard-codes `-U splitbill -d splitbill` instead of reading `.env`.
@@ -90,6 +87,29 @@ Checks: `npx tsc --noEmit` → **1 error** · `npx vitest run` → **1 failing t
 ---
 
 ## 4. The contract both sides must agree on
+
+### 4.1 Auth (proposed — frontend + mock only; backend not built yet)
+
+> Changing auth is a 🟡 CONFIRM action under `backend/SECURITY_RULES.md`. This section is the
+> proposal the frontend and mock implement; `backend/AI_NOTES.md §4.5` (plain `X-User`) still
+> describes the backend until the user approves the change and it is copied there.
+
+| Endpoint | Body | Success | Errors |
+|---|---|---|---|
+| `POST /auth/register` | `{ "username", "password" }` | `201 { "username" }` + session cookie | `400` invalid username/password, `409` taken |
+| `POST /auth/login` | `{ "username", "password" }` | `200 { "username" }` + session cookie | `401 "Incorrect username or password."` |
+| `POST /auth/logout` | — | `204`, cookie cleared | — |
+| `GET /auth/me` | — | `200 { "username" }` | `401` no valid session |
+
+- Session cookie: `sb_session`, `HttpOnly; SameSite=Lax; Path=/`, 7 days. JavaScript never sees
+  it; the Next `/api/*` rewrite forwards `Cookie` and `Set-Cookie` unchanged (verified).
+- Username: 3–32 chars, `[a-z0-9._-]`. Password: at least 8 chars. Passwords are stored hashed
+  (the mock uses scrypt; the backend will need a hashing dependency → 🟡 CONFIRM).
+- Every group endpoint takes identity from the session; no session → `401`. The same 401 → 404 → 403
+  order applies.
+- Mock demo accounts: `alice`, `bob`, `carol`, `dave`, password `splitbill123` (mock only).
+
+### 4.2 Groups, expenses, balances
 
 Full spec: [backend/AI_NOTES.md §4–§6](backend/AI_NOTES.md). What the frontend actually
 consumes (and what `mock-backend.mjs` returns) — the backend should pin these exact shapes:
@@ -109,7 +129,8 @@ Rules that bite if forgotten:
 - **Money:** string in → integer cents → string out (`"-333.33"`), never float, never `round()`.
 - **Equal split:** leftover cents go one at a time in the order of the request's `members` list.
   The frontend sends members in **group member order** — keep `GET /groups/{id}` order stable.
-- **Auth order:** missing `X-User` → 401, unknown group → 404, non-member → 403.
+- **Auth order:** no session (today's backend: missing `X-User`) → 401, unknown group → 404,
+  non-member → 403.
 - **Idempotency:** per `(group_id, key)`; same key + same body → replay original status/body;
   same key + different body → 409; missing key → 400.
 - Write `detail` messages for humans ("The shares do not add up to the total.") — they reach
@@ -212,7 +233,8 @@ tests → docs.
 - [ ] Record a settlement/payment as a special expense type.
 - [ ] Group creation & member management endpoints + UI.
 - [ ] Edit expense; pagination for long expense lists.
-- [ ] Real authentication (replace plain `X-User` header) — a 🟡 CONFIRM change per SECURITY_RULES.
+- [ ] Backend auth per §4.1 (users table, password hashing, session cookie), replacing `X-User`
+      — a 🟡 CONFIRM change per SECURITY_RULES. Frontend and mock are done.
 
 ### Phase 8 — Deployment (all 🟡 CONFIRM)
 - [ ] Production compose / hosting; real secrets via env; decide whether `/docs` stays public.

@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# impeccable: local review captures, scratch, and caches
+/.impeccable/review/
+/.impeccable/tmp/
+/.impeccable/hook.cache.json
