@@ -12,7 +12,7 @@ const anuphan = Anuphan({
 
 export const metadata: Metadata = {
   title: "SplitBill",
-  description: "Shared household bills in THB, split equally or by exact amounts, to the satang.",
+  description: "Shared bills with friends in THB, split equally or by exact amounts, to the satang.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

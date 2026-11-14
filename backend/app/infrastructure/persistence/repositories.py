@@ -4,7 +4,7 @@
 from dataclasses import asdict
 from datetime import datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -61,10 +61,19 @@ class SqlSessionRepository:
 
 
 def _to_group(row: GroupRow) -> Group:
-    return Group(id=row.id, name=row.name, members=tuple(member.username for member in row.members))
+    return Group(
+        id=row.id,
+        name=row.name,
+        members=tuple(member.username for member in row.members),
+        owner=row.owner,
+        invite_code=row.invite_code,
+    )
 
 
 class SqlGroupRepository:
+    """Reads use populate_existing so a write earlier in the same request (join, rename)
+    is never hidden by a stale row in the session's identity map."""
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -74,12 +83,60 @@ class SqlGroupRepository:
             .join(GroupMemberRow, GroupMemberRow.group_id == GroupRow.id)
             .where(GroupMemberRow.username == username)
             .order_by(GroupRow.id)
+            .execution_options(populate_existing=True)
         )
         return [_to_group(row) for row in rows]
 
     async def get(self, group_id: int) -> Group | None:
-        row = await self._session.get(GroupRow, group_id)
+        row = await self._session.get(GroupRow, group_id, populate_existing=True)
         return _to_group(row) if row else None
+
+    async def get_by_invite(self, invite_code: str) -> Group | None:
+        row = await self._session.scalar(
+            select(GroupRow)
+            .where(GroupRow.invite_code == invite_code)
+            .execution_options(populate_existing=True)
+        )
+        return _to_group(row) if row else None
+
+    async def create(self, name: str, owner: str, invite_code: str) -> Group:
+        row = GroupRow(name=name, owner=owner, invite_code=invite_code)
+        self._session.add(row)
+        await self._session.flush()
+        self._session.add(GroupMemberRow(group_id=row.id, username=owner, position=0))
+        await self._session.flush()
+        return Group(id=row.id, name=name, members=(owner,), owner=owner, invite_code=invite_code)
+
+    async def rename(self, group_id: int, name: str) -> None:
+        await self._session.execute(
+            update(GroupRow).where(GroupRow.id == group_id).values(name=name)
+        )
+
+    async def set_invite_code(self, group_id: int, invite_code: str) -> None:
+        await self._session.execute(
+            update(GroupRow).where(GroupRow.id == group_id).values(invite_code=invite_code)
+        )
+
+    async def delete(self, group_id: int) -> None:
+        # Members, expenses (and their shares) and idempotency keys cascade in the database.
+        await self._session.execute(delete(GroupRow).where(GroupRow.id == group_id))
+
+    async def add_member(self, group_id: int, username: str) -> None:
+        last = await self._session.scalar(
+            select(func.max(GroupMemberRow.position)).where(GroupMemberRow.group_id == group_id)
+        )
+        position = -1 if last is None else last
+        self._session.add(
+            GroupMemberRow(group_id=group_id, username=username, position=position + 1)
+        )
+        await self._session.flush()
+
+    async def remove_member(self, group_id: int, username: str) -> None:
+        await self._session.execute(
+            delete(GroupMemberRow).where(
+                GroupMemberRow.group_id == group_id, GroupMemberRow.username == username
+            )
+        )
 
 
 def _to_expense(row: ExpenseRow) -> Expense:
@@ -129,6 +186,37 @@ class SqlExpenseRepository:
             select(ExpenseRow).where(ExpenseRow.id == expense_id, ExpenseRow.group_id == group_id)
         )
         return _to_expense(row) if row else None
+
+    async def replace(self, expense_id: int, expense: NewExpense) -> Expense:
+        # Old shares go first, in their own statement: re-inserting the same
+        # (expense_id, username) keys in one flush would collide.
+        await self._session.execute(
+            delete(ExpenseShareRow).where(ExpenseShareRow.expense_id == expense_id)
+        )
+        await self._session.execute(
+            update(ExpenseRow)
+            .where(ExpenseRow.id == expense_id)
+            .values(
+                description=expense.description,
+                paid_by=expense.paid_by,
+                amount_cents=expense.amount_cents,
+                split_type=expense.split_type,
+            )
+        )
+        self._session.add_all(
+            ExpenseShareRow(
+                expense_id=expense_id, username=share.member, position=index, cents=share.cents
+            )
+            for index, share in enumerate(expense.shares)
+        )
+        await self._session.flush()
+        row = await self._session.scalar(
+            select(ExpenseRow)
+            .where(ExpenseRow.id == expense_id)
+            .execution_options(populate_existing=True)
+        )
+        assert row is not None
+        return _to_expense(row)
 
     async def delete(self, expense_id: int) -> None:
         await self._session.execute(delete(ExpenseRow).where(ExpenseRow.id == expense_id))

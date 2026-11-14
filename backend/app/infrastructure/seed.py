@@ -12,6 +12,7 @@ import sys
 
 from sqlalchemy import select
 
+from app.application.use_cases.groups import new_invite_code
 from app.domain.entities import Group
 from app.domain.money import parse_amount
 from app.domain.splits import equal_split, exact_split
@@ -58,12 +59,12 @@ async def seed(password: str) -> None:
         for name, members in GROUPS:
             if await session.scalar(select(GroupRow.id).where(GroupRow.name == name)) is not None:
                 continue
-            row = GroupRow(name=name)
+            row = GroupRow(name=name, owner=members[0], invite_code=new_invite_code())
             session.add(row)
             await session.flush()
             for position, username in enumerate(members):
                 session.add(GroupMemberRow(group_id=row.id, username=username, position=position))
-            new_groups[name] = Group(id=row.id, name=name, members=tuple(members))
+            new_groups[name] = Group(id=row.id, name=name, members=tuple(members), owner=members[0])
 
         for group_name, description, payer, amount, split in BILLS:
             group = new_groups.get(group_name)

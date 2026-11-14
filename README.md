@@ -11,9 +11,9 @@ Split group expenses in Thai baht. Record who paid, split the cost **equally** o
 amounts**, and see who owes whom. Every amount is computed in integer satang, never floats, and
 balances always sum to `0.00`.
 
-> **Status:** frontend and backend both work end to end: accounts with sign-in, households,
-> equal/exact splits, idempotent bill entry and balances, on PostgreSQL. Households are created by
-> `make seed` for now. See [AI_NOTES.md](AI_NOTES.md) for the plan.
+> **Status:** frontend and backend both work end to end: accounts, groups you create and
+> share by invite link, equal/exact splits, editable bills and balances, on PostgreSQL. See
+> [AI_NOTES.md](AI_NOTES.md) for the plan.
 
 ---
 
@@ -89,16 +89,18 @@ Check the API with `curl http://127.0.0.1:8000/health`.
 
 ## Using the app
 
-1. **Sign in or create an account.** You only see the households you belong to. Switch between
+1. **Sign in or create an account.** You only see the groups you belong to. Switch between
    Thai and English at any time.
-2. **Pick a group.**
+2. **Pick or create a group.** Use **New group**, then **Invite** to copy a join link for
+   your roommates. The owner can rename it, reset the link, remove members (once their balance
+   is 0.00) or delete it; anyone can leave once settled.
 3. **Add an expense:** description, amount, who paid, and the split:
    - **Equal** among the members you tick. Leftover satang go one at a time to members in list
      order: 1,000.00 among alice, bob and carol → 333.34 / 333.33 / 333.33.
    - **Exact** amounts per member. Submitting stays disabled until the shares add up to the total.
    A live preview shows each share as you type.
 4. **Check balances.** Positive means the member is owed money; negative means they owe.
-5. **Delete** an expense. Only the person who paid it can.
+5. **Edit or delete** a bill. Only the person who paid it can.
 
 ## API overview
 
@@ -149,7 +151,7 @@ npm test
 | `make db` | Start only the database |
 | `make dev` | Run the API locally with reload |
 | `make migrate` | Apply migrations |
-| `make seed` | Add demo users and households (needs `SEED_DEMO_PASSWORD`) |
+| `make seed` | Add demo users and groups (needs `SEED_DEMO_PASSWORD`) |
 | `make revision m="..."` | Create a migration |
 | `make logs` | Follow container logs |
 | `make clean` | ⚠️ Stop everything **and delete the database volume** |

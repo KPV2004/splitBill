@@ -14,6 +14,9 @@ interface HouseholdRailProps {
   selectedGroupId: number | null;
   onSelectGroup: (groupId: number) => void;
   onSignOut: () => void;
+  onCreateGroup: () => void;
+  /** True while the create-household view is open. */
+  creating: boolean;
   signingOut: boolean;
 }
 
@@ -35,6 +38,8 @@ export function HouseholdRail({
   onSelectGroup,
   onSignOut,
   signingOut,
+  onCreateGroup,
+  creating,
 }: HouseholdRailProps) {
   const { t } = useI18n();
 
@@ -72,9 +77,9 @@ export function HouseholdRail({
                   <button
                     type="button"
                     onClick={() => onSelectGroup(group.id)}
-                    aria-current={active ? "page" : undefined}
+                    aria-current={active && !creating ? "page" : undefined}
                     className={`flex w-full items-center justify-between gap-4 rounded-xl px-3 py-2.5 text-left text-[0.9375rem] transition-colors ${
-                      active ? "bg-rail-active font-semibold text-white" : "text-rail-text hover:bg-rail-hover"
+                      active && !creating ? "bg-rail-active font-semibold text-white" : "text-rail-text hover:bg-rail-hover"
                     }`}
                   >
                     <span className="truncate">{group.name}</span>
@@ -87,6 +92,17 @@ export function HouseholdRail({
             })}
           </ul>
         )}
+        <button
+          type="button"
+          onClick={onCreateGroup}
+          aria-pressed={creating}
+          className={`mt-2 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-[0.9375rem] transition-colors ${
+            creating ? "bg-rail-active text-white" : "text-rail-muted hover:bg-rail-hover hover:text-rail-text"
+          }`}
+        >
+          <Icon name="plus" className="size-4" />
+          {t("rail.newHousehold")}
+        </button>
       </nav>
 
       <div className="hidden border-t border-rail-line px-6 py-5 lg:grid lg:gap-4">

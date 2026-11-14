@@ -11,7 +11,8 @@ web
 Roommates and housemates who share recurring household costs (rent, utilities, internet,
 groceries, cleaning supplies) over months. They mostly use SplitBill on a **desktop or laptop
 browser**, entering expenses after the fact and checking who owes whom before settling up.
-Each person has their own account and belongs to one or more households (groups).
+Each person has their own account and belongs to one or more groups (a household, a trip, any
+set of friends who share costs). The UI says "group" / "กลุ่ม", not "household".
 
 ## Product Purpose
 
@@ -27,7 +28,7 @@ before they can be saved, and the live preview shows exactly what will be stored
 
 ## Operating Context
 
-- Long-lived groups (a household) with many expenses accumulating over months.
+- Long-lived groups (often a household) with many expenses accumulating over months.
 - One person usually pays a bill, then records it and splits it equally or by exact amounts
   (e.g. a bigger room pays a bigger share of rent).
 - Members check balances periodically to settle up.

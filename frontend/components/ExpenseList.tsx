@@ -5,7 +5,7 @@ import { useState } from "react";
 import { MiniCarrier } from "@/components/Carrier";
 import { Icon } from "@/components/Icon";
 import { expenseShares, type Expense } from "@/lib/api";
-import { useI18n } from "@/lib/i18n";
+import { countText, useI18n } from "@/lib/i18n";
 import { memberColor } from "@/lib/members";
 import { formatCents, parseSignedCents } from "@/lib/money";
 
@@ -18,6 +18,10 @@ interface ExpenseListProps {
   /** Expense id whose DELETE request is currently in flight. */
   pendingDeleteId: number | null;
   onDelete: (expenseId: number) => void;
+  /** Open this bill in the form for editing (payer only). */
+  onEdit: (expense: Expense) => void;
+  /** The bill currently open in the form, highlighted in the list. */
+  editingId: number | null;
 }
 
 /**
@@ -25,7 +29,15 @@ interface ExpenseListProps {
  * with its carrier at row scale, so the shape of every split reads at a glance.
  * Deleting is a two-step inline confirm, offered only to the bill's payer.
  */
-export function ExpenseList({ expenses, members, currentUser, pendingDeleteId, onDelete }: ExpenseListProps) {
+export function ExpenseList({
+  expenses,
+  members,
+  currentUser,
+  pendingDeleteId,
+  onDelete,
+  onEdit,
+  editingId,
+}: ExpenseListProps) {
   const { t, intlLocale } = useI18n();
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const dateFormatter = new Intl.DateTimeFormat(intlLocale, { day: "numeric", month: "short" });
@@ -49,7 +61,7 @@ export function ExpenseList({ expenses, members, currentUser, pendingDeleteId, o
         <h2 id="bills-heading" className="text-lg font-bold text-ink">
           {t("bills.title")}
         </h2>
-        <span className="text-sm text-ink-3">{t("household.bills", { n: expenses.length })}</span>
+        <span className="text-sm text-ink-3">{countText(t, expenses.length, "household.billsOne", "household.bills")}</span>
       </div>
 
       {expenses.length === 0 ? (
@@ -62,7 +74,11 @@ export function ExpenseList({ expenses, members, currentUser, pendingDeleteId, o
               const shares = expenseShares(expense);
               const isPayer = expense.paid_by === currentUser;
               return (
-                <li key={expense.id} className="flex gap-3 border-b border-line-soft px-6 py-3 last:border-0">
+                <li
+                  key={expense.id}
+                  aria-current={editingId === expense.id ? "true" : undefined}
+                  className="flex gap-3 border-b border-line-soft px-6 py-3 last:border-0 aria-[current]:bg-ok-soft"
+                >
                   <MiniCarrier tiers={shares.map((share) => ({ ...share, color: memberColor(members, share.member) }))} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-3">
@@ -77,7 +93,8 @@ export function ExpenseList({ expenses, members, currentUser, pendingDeleteId, o
                       <span className="num">{formatDate(expense.created_at)}</span>
                     </p>
                     {isPayer && (
-                      <div className="mt-1.5 -ml-2">
+                      <div className="mt-1.5 -ml-2 flex items-center gap-1">
+                        <EditButton expense={expense} onEdit={onEdit} hidden={confirmingId === expense.id} />
                         <DeleteControl
                           expense={expense}
                           confirming={confirmingId === expense.id}
@@ -109,7 +126,7 @@ export function ExpenseList({ expenses, members, currentUser, pendingDeleteId, o
                   <th scope="col" className="py-2 pr-3">{t("bills.colSplit")}</th>
                   <th scope="col" className="py-2 pr-3">{t("bills.colDate")}</th>
                   <th scope="col" className="py-2 pr-3 text-right">{t("bills.colAmount")}</th>
-                  <th scope="col" className="w-28 py-2 pr-6">
+                  <th scope="col" className="w-36 py-2 pr-6">
                     <span className="sr-only">{t("bills.delete")}</span>
                   </th>
                 </tr>
@@ -119,7 +136,11 @@ export function ExpenseList({ expenses, members, currentUser, pendingDeleteId, o
                   const shares = expenseShares(expense);
                   const isPayer = expense.paid_by === currentUser;
                   return (
-                    <tr key={expense.id} className="border-b border-line-soft last:border-0 hover:bg-ground/60">
+                    <tr
+                      key={expense.id}
+                      aria-current={editingId === expense.id ? "true" : undefined}
+                      className="border-b border-line-soft last:border-0 hover:bg-ground/60 aria-[current]:bg-ok-soft"
+                    >
                       <td className="py-3 pr-3 pl-6">
                         <MiniCarrier
                           tiers={shares.map((share) => ({ ...share, color: memberColor(members, share.member) }))}
@@ -147,18 +168,21 @@ export function ExpenseList({ expenses, members, currentUser, pendingDeleteId, o
                       </td>
                       <td className="py-3 pr-6 text-right whitespace-nowrap">
                         {isPayer && (
-                          <DeleteControl
-                            expense={expense}
-                            confirming={confirmingId === expense.id}
-                            isDeleting={pendingDeleteId === expense.id}
-                            busy={pendingDeleteId !== null}
-                            onAsk={() => setConfirmingId(expense.id)}
-                            onCancel={() => setConfirmingId(null)}
-                            onConfirm={() => {
-                              setConfirmingId(null);
-                              onDelete(expense.id);
-                            }}
-                          />
+                          <span className="inline-flex items-center gap-1">
+                            <EditButton expense={expense} onEdit={onEdit} hidden={confirmingId === expense.id} />
+                            <DeleteControl
+                              expense={expense}
+                              confirming={confirmingId === expense.id}
+                              isDeleting={pendingDeleteId === expense.id}
+                              busy={pendingDeleteId !== null}
+                              onAsk={() => setConfirmingId(expense.id)}
+                              onCancel={() => setConfirmingId(null)}
+                              onConfirm={() => {
+                                setConfirmingId(null);
+                                onDelete(expense.id);
+                              }}
+                            />
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -170,6 +194,23 @@ export function ExpenseList({ expenses, members, currentUser, pendingDeleteId, o
         </>
       )}
     </section>
+  );
+}
+
+/** Payer-only: opens the bill in the form for editing. */
+function EditButton({ expense, onEdit, hidden }: { expense: Expense; onEdit: (expense: Expense) => void; hidden: boolean }) {
+  const { t } = useI18n();
+  if (hidden) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => onEdit(expense)}
+      aria-label={t("bills.editLabel", { bill: expense.description })}
+      className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-ink-3 transition-colors hover:bg-sunken hover:text-ink"
+    >
+      <Icon name="pencil" className="size-3.5" />
+      {t("bills.edit")}
+    </button>
   );
 }
 

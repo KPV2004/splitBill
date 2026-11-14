@@ -19,9 +19,16 @@ class Group:
     name: str
     # Order matters: equal-split remainders and balance listings follow it.
     members: tuple[str, ...]
+    # The creator; only they can rename, invite-reset, remove members or delete.
+    owner: str = ""
+    # Shared with friends as a join link; resetting it stops new joins with the old one.
+    invite_code: str = ""
 
     def has_member(self, username: str) -> bool:
         return username in self.members
+
+    def is_owner(self, username: str) -> bool:
+        return username == self.owner
 
 
 @dataclass(frozen=True)

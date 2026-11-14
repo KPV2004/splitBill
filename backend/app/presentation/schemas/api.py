@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-from app.application.dto import BalanceView, ExpenseView, GroupView
+from app.application.dto import BalanceView, ExpenseView, GroupView, InvitePreview
 
 Username = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)]
 AmountText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=20)]
@@ -43,14 +43,48 @@ class ExpenseIn(StrictModel):
     split: Annotated[EqualSplitIn | ExactSplitIn, Field(discriminator="type")]
 
 
+GroupName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+
+
+class GroupIn(StrictModel):
+    name: GroupName
+
+
 class GroupOut(BaseModel):
     id: int
     name: str
     members: list[str]
+    owner: str
+    # Members share it as /join/<invite_code>; the owner can reset it.
+    invite_code: str
 
     @classmethod
     def of(cls, view: GroupView) -> "GroupOut":
-        return cls(id=view.id, name=view.name, members=view.members)
+        return cls(
+            id=view.id,
+            name=view.name,
+            members=view.members,
+            owner=view.owner,
+            invite_code=view.invite_code,
+        )
+
+
+class InvitePreviewOut(BaseModel):
+    group_id: int
+    name: str
+    owner: str
+    member_count: int
+    already_member: bool
+
+    @classmethod
+    def of(cls, view: InvitePreview) -> "InvitePreviewOut":
+        return cls(
+            group_id=view.group_id,
+            name=view.name,
+            owner=view.owner,
+            member_count=view.member_count,
+            already_member=view.already_member,
+        )
 
 
 class SplitOut(BaseModel):

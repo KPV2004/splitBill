@@ -10,13 +10,34 @@ from app.domain.money import format_cents
 
 @dataclass(frozen=True)
 class GroupView:
+    """A group as its members see it (only members ever get one)."""
+
     id: int
     name: str
     members: list[str]
+    owner: str
+    invite_code: str
 
     @classmethod
     def of(cls, group: Group) -> "GroupView":
-        return cls(id=group.id, name=group.name, members=list(group.members))
+        return cls(
+            id=group.id,
+            name=group.name,
+            members=list(group.members),
+            owner=group.owner,
+            invite_code=group.invite_code,
+        )
+
+
+@dataclass(frozen=True)
+class InvitePreview:
+    """What a signed-in visitor sees before joining from an invite link."""
+
+    group_id: int
+    name: str
+    owner: str
+    member_count: int
+    already_member: bool
 
 
 @dataclass(frozen=True)

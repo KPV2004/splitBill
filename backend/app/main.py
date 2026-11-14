@@ -7,7 +7,7 @@ from sqlalchemy import text
 from app.infrastructure.config import settings
 from app.infrastructure.persistence.db import SessionLocal
 from app.presentation.error_handlers import register_error_handlers
-from app.presentation.routers import auth, groups
+from app.presentation.routers import auth, groups, invites
 
 app = FastAPI(title="SplitBill API", version="0.2.0")
 register_error_handlers(app)
@@ -18,12 +18,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["Content-Type", "Idempotency-Key"],
 )
 
 app.include_router(auth.router)
 app.include_router(groups.router)
+app.include_router(invites.router)
 
 
 @app.get("/health", tags=["health"])

@@ -73,7 +73,12 @@ def client(migrated: None) -> Iterator[TestClient]:
                     text("INSERT INTO users (username, password_hash) VALUES (:u, :p)"),
                     {"u": name, "p": pw},
                 )
-            await conn.execute(text("INSERT INTO groups (name) VALUES ('Ari Condo 12A')"))
+            await conn.execute(
+                text(
+                    "INSERT INTO groups (name, owner, invite_code) "
+                    "VALUES ('Ari Condo 12A', 'alice', 'ari-invite-1')"
+                )
+            )
             for position, name in enumerate(("alice", "bob", "carol")):
                 await conn.execute(
                     text("INSERT INTO group_members VALUES (1, :u, :p)"),
@@ -180,3 +185,39 @@ def test_idempotency_unique_constraint_raises_race(client: TestClient) -> None:
         await engine.dispose()
 
     asyncio.run(store_again())
+
+
+def test_group_management_on_postgres(client: TestClient) -> None:
+    login(client, "dave")
+    group = client.post("/groups", json={"name": "Sukhumvit Loft"}).json()
+    gid, code = group["id"], group["invite_code"]
+
+    login(client, "carol")
+    assert client.post(f"/invites/{code}/join").json()["members"] == ["dave", "carol"]
+    assert client.post(f"/invites/{code}/join").json()["members"] == ["dave", "carol"]
+
+    bill = {
+        "description": "Water",
+        "paid_by": "carol",
+        "amount": "100.00",
+        "split": {"type": "equal", "members": ["dave", "carol"]},
+    }
+    eid = client.post(
+        f"/groups/{gid}/expenses", json=bill, headers={"Idempotency-Key": "w1"}
+    ).json()["id"]
+    edited = {**bill, "amount": "80.00", "split": {"type": "exact", "shares": {"dave": "80.00"}}}
+    updated = client.put(f"/groups/{gid}/expenses/{eid}", json=edited)
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["shares"] == {"dave": "80.00"}
+    assert client.get(f"/groups/{gid}/balances").json() == [
+        {"member": "dave", "balance": "-80.00"},
+        {"member": "carol", "balance": "80.00"},
+    ]
+
+    login(client, "dave")
+    assert client.delete(f"/groups/{gid}/members/carol").status_code == 409  # unsettled
+    renamed = client.patch(f"/groups/{gid}", json={"name": "Sukhumvit Loft (old)"})
+    assert renamed.json()["name"] == "Sukhumvit Loft (old)"
+    assert client.post(f"/groups/{gid}/invite/reset").json()["invite_code"] != code
+    assert client.delete(f"/groups/{gid}").status_code == 204  # cascades bills and keys
+    assert client.get(f"/groups/{gid}/expenses").status_code == 404

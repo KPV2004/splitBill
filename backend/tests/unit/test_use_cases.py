@@ -13,10 +13,14 @@ from app.domain.errors import (
     GroupNotFoundError,
     IdempotencyConflictError,
     InvalidCredentialsError,
+    InviteNotFoundError,
     MissingIdempotencyKeyError,
     NotAuthenticatedError,
     NotMemberError,
+    NotOwnerError,
     NotPayerError,
+    OwnerCannotLeaveError,
+    UnsettledBalanceError,
     UsernameTakenError,
     ValidationError,
 )
@@ -157,3 +161,88 @@ def test_sessions_expire(db: FakeDatabase) -> None:
     db.clock += timedelta(hours=2)
     with pytest.raises(NotAuthenticatedError):
         asyncio.run(auth(db).current_user(started.token))
+
+
+# --- group management ------------------------------------------------------------
+
+
+def groups(db: FakeDatabase) -> GroupService:
+    return GroupService(FakeUnitOfWork(db))
+
+
+def test_create_group_makes_creator_owner_and_member(db: FakeDatabase) -> None:
+    view = asyncio.run(groups(db).create("  Sukhumvit   Loft ", "dave"))
+    assert view.name == "Sukhumvit Loft"
+    assert view.members == ["dave"] and view.owner == "dave"
+    assert len(view.invite_code) >= 12
+    with pytest.raises(ValidationError):
+        asyncio.run(groups(db).create("   ", "dave"))
+
+
+def test_only_owner_manages(db: FakeDatabase) -> None:
+    with pytest.raises(NotOwnerError):
+        asyncio.run(groups(db).rename(1, "Mine now", "bob"))
+    with pytest.raises(NotOwnerError):
+        asyncio.run(groups(db).reset_invite(1, "bob"))
+    with pytest.raises(NotOwnerError):
+        asyncio.run(groups(db).delete(1, "bob"))
+    with pytest.raises(NotOwnerError):
+        asyncio.run(groups(db).remove_member(1, "carol", "bob"))
+    renamed = asyncio.run(groups(db).rename(1, "Ari Condo 12B", "alice"))
+    assert renamed.name == "Ari Condo 12B"
+
+
+def test_invite_join_and_reset(db: FakeDatabase) -> None:
+    preview = asyncio.run(groups(db).preview_invite("ari-code", "dave"))
+    assert (preview.name, preview.member_count, preview.already_member) == (
+        "Ari Condo 12A",
+        3,
+        False,
+    )
+    joined = asyncio.run(groups(db).join("ari-code", "dave"))
+    assert joined.members == ["alice", "bob", "carol", "dave"]  # appended last
+    again = asyncio.run(groups(db).join("ari-code", "dave"))
+    assert again.members == joined.members  # joining twice changes nothing
+
+    reset = asyncio.run(groups(db).reset_invite(1, "alice"))
+    assert reset.invite_code != "ari-code"
+    with pytest.raises(InviteNotFoundError):
+        asyncio.run(groups(db).join("ari-code", "erin"))
+
+
+def test_leave_and_remove_need_a_settled_balance(db: FakeDatabase) -> None:
+    asyncio.run(expenses(db).create(DINNER, "alice", "key-1"))  # bob, carol now owe alice
+    with pytest.raises(UnsettledBalanceError):
+        asyncio.run(groups(db).remove_member(1, "bob", "bob"))
+    with pytest.raises(UnsettledBalanceError):
+        asyncio.run(groups(db).remove_member(1, "carol", "alice"))
+    with pytest.raises(OwnerCannotLeaveError):
+        asyncio.run(groups(db).remove_member(1, "alice", "alice"))
+
+    asyncio.run(groups(db).join("ari-code", "dave"))
+    asyncio.run(groups(db).remove_member(1, "dave", "dave"))  # settled: may leave
+    assert "dave" not in db.groups[1].members
+
+
+def test_delete_group_removes_its_bills(db: FakeDatabase) -> None:
+    asyncio.run(expenses(db).create(DINNER, "alice", "key-1"))
+    asyncio.run(groups(db).delete(1, "alice"))
+    assert 1 not in db.groups and db.expenses == {}
+
+
+# --- editing bills -----------------------------------------------------------------
+
+
+def test_payer_edits_bill_and_shares_are_recomputed(db: FakeDatabase) -> None:
+    created = asyncio.run(expenses(db).create(DINNER, "alice", "key-1"))
+    edited = CreateExpenseCommand(
+        **{**DINNER.__dict__, "amount": "90.00", "members": ("bob", "carol")}
+    )
+    view = asyncio.run(expenses(db).update(created.id, edited, "alice"))
+    assert view.id == created.id and view.amount == "90.00"
+    assert view.shares == [("bob", "45.00"), ("carol", "45.00")]
+    with pytest.raises(NotPayerError):
+        asyncio.run(expenses(db).update(created.id, edited, "bob"))
+    with pytest.raises(ValidationError):
+        bad = CreateExpenseCommand(**{**DINNER.__dict__, "amount": "1,000"})
+        asyncio.run(expenses(db).update(created.id, bad, "alice"))

@@ -92,7 +92,13 @@ def test_every_group_endpoint_requires_a_session(db: FakeDatabase) -> None:
 def test_groups_list_and_detail(db: FakeDatabase) -> None:
     client = signed_in("alice")
     assert client.get("/groups").json() == [
-        {"id": 1, "name": "Ari Condo 12A", "members": ["alice", "bob", "carol"]}
+        {
+            "id": 1,
+            "name": "Ari Condo 12A",
+            "members": ["alice", "bob", "carol"],
+            "owner": "alice",
+            "invite_code": "ari-code",
+        }
     ]
     assert client.get("/groups/1").json()["members"] == ["alice", "bob", "carol"]
     assert client.get("/groups/2").status_code == 403
@@ -184,3 +190,75 @@ def test_delete_payer_only(db: FakeDatabase) -> None:
     assert signed_in("dave").delete(f"/groups/1/expenses/{expense_id}").status_code == 403
     assert alice.delete(f"/groups/1/expenses/{expense_id}").status_code == 204
     assert alice.delete(f"/groups/1/expenses/{expense_id}").status_code == 404
+
+
+def test_group_lifecycle_over_http(db: FakeDatabase) -> None:
+    dave = signed_in("dave")
+    created = dave.post("/groups", json={"name": "Sukhumvit Loft"})
+    assert created.status_code == 201
+    group = created.json()
+    assert group["owner"] == "dave" and group["members"] == ["dave"]
+    gid, code = group["id"], group["invite_code"]
+
+    assert dave.post("/groups", json={"name": ""}).status_code == 422
+    assert dave.patch(f"/groups/{gid}", json={"name": "Sukhumvit Loft 2"}).json()["name"] == (
+        "Sukhumvit Loft 2"
+    )
+
+    alice = signed_in("alice")
+    preview = alice.get(f"/invites/{code}")
+    assert preview.status_code == 200
+    assert preview.json() == {
+        "group_id": gid,
+        "name": "Sukhumvit Loft 2",
+        "owner": "dave",
+        "member_count": 1,
+        "already_member": False,
+    }
+    joined = alice.post(f"/invites/{code}/join")
+    assert joined.status_code == 200 and joined.json()["members"] == ["dave", "alice"]
+    assert alice.get("/invites/not-a-code").status_code == 404
+    assert TestClient(app).get(f"/invites/{code}").status_code == 401
+
+    assert alice.patch(f"/groups/{gid}", json={"name": "Hijack"}).status_code == 403
+    assert alice.post(f"/groups/{gid}/invite/reset").status_code == 403
+    new_code = dave.post(f"/groups/{gid}/invite/reset").json()["invite_code"]
+    assert new_code != code
+    assert signed_in("bob").post(f"/invites/{code}/join").status_code == 404
+
+    assert alice.delete(f"/groups/{gid}").status_code == 403
+    assert dave.delete(f"/groups/{gid}/members/dave").status_code == 409  # owner can't leave
+    assert alice.delete(f"/groups/{gid}/members/alice").status_code == 204  # settled: leaves
+    assert dave.delete(f"/groups/{gid}").status_code == 204
+    assert dave.get(f"/groups/{gid}").status_code == 404
+
+
+def test_unsettled_member_cannot_be_removed(db: FakeDatabase) -> None:
+    alice = signed_in("alice")
+    alice.post("/groups/1/expenses", json=DINNER, headers={"Idempotency-Key": "k1"})
+    blocked = alice.delete("/groups/1/members/bob")
+    assert blocked.status_code == 409
+    assert "bob still has a balance" in blocked.json()["detail"]
+    assert signed_in("bob").delete("/groups/1/members/carol").status_code == 403
+
+
+def test_edit_bill_over_http(db: FakeDatabase) -> None:
+    alice = signed_in("alice")
+    created = alice.post("/groups/1/expenses", json=DINNER, headers={"Idempotency-Key": "k1"})
+    eid = created.json()["id"]
+    edit = {
+        **DINNER,
+        "description": "Dinner (corrected)",
+        "split": {"type": "exact", "shares": {"alice": "400.00", "bob": "600.00"}},
+    }
+    updated = alice.put(f"/groups/1/expenses/{eid}", json=edit)
+    assert updated.status_code == 200
+    body = updated.json()
+    assert body["id"] == eid and body["description"] == "Dinner (corrected)"
+    assert body["shares"] == {"alice": "400.00", "bob": "600.00"}
+    assert signed_in("bob").put(f"/groups/1/expenses/{eid}", json=edit).status_code == 403
+    assert alice.put("/groups/1/expenses/999", json=edit).status_code == 404
+    bad = {**edit, "split": {"type": "exact", "shares": {"alice": "1.00"}}}
+    assert alice.put(f"/groups/1/expenses/{eid}", json=bad).status_code == 400
+    balances = alice.get("/groups/1/balances").json()
+    assert balances[1] == {"member": "bob", "balance": "-600.00"}

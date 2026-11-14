@@ -33,9 +33,9 @@ BACKEND_ORIGIN=http://127.0.0.1:9999 npm run dev   # terminal 2: app on localhos
 
 Open http://localhost:3000. You'll land on the sign-in screen. Sign in with a demo account
 (`alice`, `bob`, `carol` or `dave`, password `splitbill123`), or create a new one on the register
-screen. The mock ships three households: **Ari Condo 12A** (alice, bob, carol, with demo bills),
+screen. The mock ships three groups: **Ari Condo 12A** (alice, bob, carol, with demo bills),
 **Lat Phrao House** (alice, bob) and **Chiang Mai Flat** (bob, carol, dave). New accounts start
-with no household. Everything lives in memory and resets when the mock restarts.
+with no group. Everything lives in memory and resets when the mock restarts.
 
 ### Against the real backend
 
@@ -84,16 +84,20 @@ The browser never calls the backend directly. `next.config.ts` rewrites `/api/*`
 frontend/
 ├── app/
 │   ├── layout.tsx            root layout, Anuphan font (Thai + Latin), providers
-│   ├── page.tsx              household ledger; redirects to /login when signed out
-│   ├── login/page.tsx        sign in
+│   ├── page.tsx              group ledger; redirects to /login when signed out
+│   ├── login/page.tsx        sign in (honours ?next= to return to an invite)
 │   ├── register/page.tsx     create an account
+│   ├── join/[code]/page.tsx  invite link: preview and join a group
 │   └── globals.css           design tokens (Tailwind @theme) and browser-surface styling
 ├── components/
 │   ├── AuthScreen.tsx        login + register form, validation, brand panel
-│   ├── HouseholdRail.tsx     green rail: households, your balance in each, account, language
+│   ├── HouseholdRail.tsx     green rail: groups, your balance in each, account, language
 │   ├── BalancesPanel.tsx     your balance sentence + every roommate on a diverging scale
 │   ├── ExpenseList.tsx       bills table (list on phones), mini carriers, payer-only delete
-│   ├── ExpenseForm.tsx       new bill, equal/exact split, live carrier, idempotency per draft
+│   ├── ExpenseForm.tsx       new/edit bill, equal/exact split, live carrier, idempotency per draft
+│   ├── GroupSettings.tsx     rename, invite link, members (remove/leave), delete group
+│   ├── CreateHousehold.tsx   name a new group
+│   ├── JoinScreen.tsx        the join page's content
 │   ├── Carrier.tsx           the "pinto" stack: a bill's shares as proportional tiers
 │   ├── Banner.tsx, Icon.tsx, LanguageToggle.tsx, Providers.tsx
 ├── lib/
@@ -145,7 +149,7 @@ contract is in `.impeccable/surfaces/app-page-tsx.md`.
 
 ## Known gaps
 
-- No dark theme, no component tests, no create-household flow (households are seeded).
+- No dark theme, no component tests, no ownership transfer.
 
 ## Notes for contributors
 

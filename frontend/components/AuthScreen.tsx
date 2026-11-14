@@ -17,6 +17,12 @@ import { equalSplitCents, formatCents } from "@/lib/money";
 
 type Mode = "login" | "register";
 
+/** Where to go after signing in: a same-site `?next=` path, else the app. */
+function nextPath(): string {
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next !== null && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+}
+
 /** The golden example: 1,000.00 three ways → 333.34 / 333.33 / 333.33. */
 const SHOWCASE_MEMBERS = ["alice", "bob", "carol"];
 const SHOWCASE_SHARES = equalSplitCents(100000, SHOWCASE_MEMBERS.length);
@@ -175,7 +181,7 @@ export function AuthScreen({ mode }: { mode: Mode }) {
   const [serverError, setServerError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (state.status === "signed-in") router.replace("/");
+    if (state.status === "signed-in") router.replace(nextPath());
   }, [state.status, router]);
 
   const isRegister = mode === "register";
@@ -211,7 +217,7 @@ export function AuthScreen({ mode }: { mode: Mode }) {
     try {
       const credentials = { username: name, password };
       await (isRegister ? register(credentials) : login(credentials));
-      router.replace("/");
+      router.replace(nextPath());
     } catch (error: unknown) {
       setServerError(errorText(error, t));
       setSubmitting(false);
@@ -311,7 +317,9 @@ export function AuthScreen({ mode }: { mode: Mode }) {
           <p className="text-center text-sm text-ink-2">
             {isRegister ? t("register.haveAccount") : t("login.noAccount")}{" "}
             <Link
-              href={isRegister ? "/login" : "/register"}
+              // The form only renders in the browser (after the session check), so
+              // reading the URL here never differs from the server render.
+              href={`${isRegister ? "/login" : "/register"}${window.location.search}`}
               className="font-semibold text-enamel-jade underline decoration-enamel-jade/40 hover:decoration-enamel-jade"
             >
               {isRegister ? t("register.toLogin") : t("login.toRegister")}

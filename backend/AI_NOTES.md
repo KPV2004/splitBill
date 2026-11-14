@@ -192,8 +192,21 @@ Imports may only point **inward**. Violations must be rejected in review.
 
 ### 4.7 Permissions
 
-- Deleting an expense is allowed **only for its payer**; anyone else (even a member) → `403`.
+- Editing (`PUT`) or deleting an expense is allowed **only for its current payer**; anyone else
+  (even a member) → `403`. An edit follows every create rule; the new payer may be any member.
 - Listing groups returns only groups containing the requesting user.
+
+### 4.8 Groups, owners and invites (added 2026-11-14, approved by the user)
+
+- Any signed-in user can create a group; they become its **owner** and first member.
+- Only the owner can rename it, reset its invite code, remove other members, or delete it
+  (deleting removes every bill and idempotency key with it). Others → `403`.
+- Every group has an **invite code** (12 URL-safe random chars). Members see it and share it as
+  `/join/<code>`. A signed-in user who opens it can preview and join; joining twice is a no-op.
+  Resetting the code makes old links return `404`. New members are appended to the member order.
+- A member may **leave** (remove themself). The owner cannot leave → `409` (delete instead).
+- Leaving or being removed requires a **balance of exactly 0.00**, otherwise `409`, so balances
+  always keep summing to zero.
 
 ---
 
@@ -206,16 +219,25 @@ Imports may only point **inward**. Violations must be rejected in review.
 | POST | `/auth/logout` | Sign out (clears cookie) | `204` |
 | GET | `/auth/me` | The signed-in user | `200` |
 | GET | `/groups` | Groups of the requesting user | `200` |
-| GET | `/groups/{group_id}` | Group with member list | `200` |
+| POST | `/groups` | Create a group (`{"name"}`); caller becomes owner | `201` |
+| GET | `/groups/{group_id}` | Group with members, owner, invite code | `200` |
+| PATCH | `/groups/{group_id}` | Rename (`{"name"}`) — owner only | `200` |
+| DELETE | `/groups/{group_id}` | Delete group and its bills — owner only | `204` |
+| POST | `/groups/{group_id}/invite/reset` | New invite code — owner only | `200` |
+| DELETE | `/groups/{group_id}/members/{username}` | Remove a member (owner) or leave (self); settled only | `204` |
+| GET | `/invites/{code}` | Preview a group from its invite code | `200` |
+| POST | `/invites/{code}/join` | Join the group (idempotent) | `200` |
 | POST | `/groups/{group_id}/expenses` | Record a new expense (requires `Idempotency-Key`) | `201` |
 | GET | `/groups/{group_id}/expenses` | Expenses, reverse chronological (newest first; tie-break: newest id) | `200` |
+| PUT | `/groups/{group_id}/expenses/{expense_id}` | Replace an expense — payer only | `200` |
 | DELETE | `/groups/{group_id}/expenses/{expense_id}` | Delete expense — payer only | `204` |
 | GET | `/groups/{group_id}/balances` | Net balance per member (positive = owed to member) | `200` |
 
-Response shapes: groups `{"id", "name", "members": [...]}` (member order is meaningful);
+Response shapes: groups `{"id", "name", "members": [...], "owner", "invite_code"}` (member order
+is meaningful); invite preview `{"group_id", "name", "owner", "member_count", "already_member"}`;
 expenses `{"id", "description", "paid_by", "amount", "split": {"type", "members"|"shares"},
 "shares": {member: amount}, "created_at"}`; balances `[{"member", "balance"}]` in member order.
-Groups are created by `make seed` for now — there is no create-group endpoint.
+`make seed` adds demo groups; users create their own with `POST /groups`.
 
 Example request (golden case):
 
@@ -239,7 +261,8 @@ Idempotency-Key: 7f3c2a10-dinner-0001
 - Domain errors (`domain/errors.py`) are raised by use cases; `presentation/error_handlers.py` maps them to HTTP. Routers never raise `HTTPException` for business rules directly.
 - Mapping: malformed request schema (bad body/params) → `422`, business-rule violation → `400`,
   no session / wrong credentials → `401`, missing `Idempotency-Key` → `400`, not a member / not
-  payer → `403`, unknown group/expense → `404`, idempotency conflict / username taken → `409`.
+  payer / not owner → `403`, unknown group/expense/invite → `404`, idempotency conflict /
+  username taken / unsettled balance / owner leaving → `409`.
 - Implemented in `app/presentation/error_handlers.py`: `RequestValidationError` → flattened
   `422 {"detail": "<message>"}`; unhandled exceptions → `500 {"detail": "Internal server error"}`
   with details only in server logs.

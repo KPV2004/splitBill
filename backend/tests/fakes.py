@@ -1,6 +1,6 @@
 """In-memory implementations of the application ports, for unit and API tests."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 
 from app.application.dto import IdempotencyRecord
@@ -67,6 +67,34 @@ class _Groups:
     async def get(self, group_id: int) -> Group | None:
         return self._db.groups.get(group_id)
 
+    async def get_by_invite(self, invite_code: str) -> Group | None:
+        return next((g for g in self._db.groups.values() if g.invite_code == invite_code), None)
+
+    async def create(self, name: str, owner: str, invite_code: str) -> Group:
+        group = Group(max(self._db.groups, default=0) + 1, name, (owner,), owner, invite_code)
+        self._db.groups[group.id] = group
+        return group
+
+    async def rename(self, group_id: int, name: str) -> None:
+        self._db.groups[group_id] = replace(self._db.groups[group_id], name=name)
+
+    async def set_invite_code(self, group_id: int, invite_code: str) -> None:
+        self._db.groups[group_id] = replace(self._db.groups[group_id], invite_code=invite_code)
+
+    async def delete(self, group_id: int) -> None:
+        del self._db.groups[group_id]
+        for expense_id in [e.id for e in self._db.expenses.values() if e.group_id == group_id]:
+            del self._db.expenses[expense_id]
+
+    async def add_member(self, group_id: int, username: str) -> None:
+        group = self._db.groups[group_id]
+        self._db.groups[group_id] = replace(group, members=(*group.members, username))
+
+    async def remove_member(self, group_id: int, username: str) -> None:
+        group = self._db.groups[group_id]
+        members = tuple(m for m in group.members if m != username)
+        self._db.groups[group_id] = replace(group, members=members)
+
 
 class _Expenses:
     def __init__(self, db: FakeDatabase) -> None:
@@ -94,6 +122,19 @@ class _Expenses:
     async def get(self, group_id: int, expense_id: int) -> Expense | None:
         expense = self._db.expenses.get(expense_id)
         return expense if expense and expense.group_id == group_id else None
+
+    async def replace(self, expense_id: int, expense: NewExpense) -> Expense:
+        current = self._db.expenses[expense_id]
+        updated = replace(
+            current,
+            description=expense.description,
+            paid_by=expense.paid_by,
+            amount_cents=expense.amount_cents,
+            split_type=expense.split_type,
+            shares=expense.shares,
+        )
+        self._db.expenses[expense_id] = updated
+        return updated
 
     async def delete(self, expense_id: int) -> None:
         self._db.expenses.pop(expense_id, None)
@@ -153,5 +194,5 @@ def household(db: FakeDatabase) -> None:
     """The golden-example household plus one alice is not in."""
     for name in ("alice", "bob", "carol", "dave"):
         db.users[name] = User(name, f"fake$pw-{name}-123")
-    db.groups[1] = Group(1, "Ari Condo 12A", ("alice", "bob", "carol"))
-    db.groups[2] = Group(2, "Chiang Mai Flat", ("bob", "carol", "dave"))
+    db.groups[1] = Group(1, "Ari Condo 12A", ("alice", "bob", "carol"), "alice", "ari-code")
+    db.groups[2] = Group(2, "Chiang Mai Flat", ("bob", "carol", "dave"), "bob", "cnx-code")

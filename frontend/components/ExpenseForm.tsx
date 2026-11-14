@@ -5,7 +5,7 @@ import type { FormEvent, ReactNode } from "react";
 
 import { Carrier, type CarrierTier } from "@/components/Carrier";
 import { Icon } from "@/components/Icon";
-import type { ExpensePayload } from "@/lib/api";
+import { expenseShares, type Expense, type ExpensePayload } from "@/lib/api";
 import { amountErrorText, useI18n } from "@/lib/i18n";
 import { memberColor } from "@/lib/members";
 import { formatCents, parseAmountCents, serializeCents } from "@/lib/money";
@@ -18,6 +18,9 @@ interface ExpenseFormProps {
   submitting: boolean;
   /** Returns true when the bill was recorded (the form then resets). */
   onSubmit: (payload: ExpensePayload, idempotencyKey: string) => Promise<boolean>;
+  /** Edit mode: the bill to change, loaded into the form. Remount (key) per bill. */
+  editing?: Expense | null;
+  onCancelEdit?: () => void;
 }
 
 export const inputClass =
@@ -46,14 +49,34 @@ function Field({ label, htmlFor, children, hint }: { label: string; htmlFor: str
  * timeout) reuses the key, so the backend can never store the bill twice; a
  * changed payload or a successful save gets a fresh key.
  */
-export function ExpenseForm({ members, currentUser, submitting, onSubmit }: ExpenseFormProps) {
+export function ExpenseForm({
+  members,
+  currentUser,
+  submitting,
+  onSubmit,
+  editing = null,
+  onCancelEdit,
+}: ExpenseFormProps) {
   const { t } = useI18n();
-  const [description, setDescription] = useState("");
-  const [amountRaw, setAmountRaw] = useState("");
-  const [payer, setPayer] = useState(() => (members.includes(currentUser) ? currentUser : ""));
-  const [splitType, setSplitType] = useState<SplitType>("equal");
-  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set(members));
-  const [exactRaw, setExactRaw] = useState<Record<string, string>>({});
+  const isEditing = editing !== null;
+  const [description, setDescription] = useState(editing?.description ?? "");
+  const [amountRaw, setAmountRaw] = useState(editing?.amount ?? "");
+  const [payer, setPayer] = useState(
+    () => editing?.paid_by ?? (members.includes(currentUser) ? currentUser : ""),
+  );
+  const [splitType, setSplitType] = useState<SplitType>(
+    editing?.split?.type === "exact" ? "exact" : "equal",
+  );
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() =>
+    editing?.split?.type === "equal" ? new Set(editing.split.members ?? []) : new Set(members),
+  );
+  const [exactRaw, setExactRaw] = useState<Record<string, string>>(() =>
+    editing?.split?.type === "exact"
+      ? Object.fromEntries(
+          expenseShares(editing).map((share) => [share.member, serializeCents(share.cents)]),
+        )
+      : {},
+  );
   const draftRef = useRef<{ key: string; body: string } | null>(null);
 
   const amount = parseAmountCents(amountRaw);
@@ -124,7 +147,7 @@ export function ExpenseForm({ members, currentUser, submitting, onSubmit }: Expe
       draftRef.current = { key: crypto.randomUUID(), body };
     }
     const recorded = await onSubmit(payload, draftRef.current.key);
-    if (recorded) {
+    if (recorded && !isEditing) {
       draftRef.current = null;
       // Keep payer, split type and selection for quick consecutive entry.
       setDescription("");
@@ -138,9 +161,20 @@ export function ExpenseForm({ members, currentUser, submitting, onSubmit }: Expe
 
   return (
     <form onSubmit={handleSubmit} aria-labelledby="new-bill-heading" className="flex flex-col gap-5" noValidate>
-      <h2 id="new-bill-heading" className="text-xl font-bold text-ink">
-        {t("form.title")}
-      </h2>
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="new-bill-heading" className="text-xl font-bold text-ink">
+          {isEditing ? t("form.editTitle") : t("form.title")}
+        </h2>
+        {isEditing && onCancelEdit && (
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="text-sm font-medium text-ink-3 hover:text-ink hover:underline"
+          >
+            {t("form.cancelEdit")}
+          </button>
+        )}
+      </div>
 
       {/* Two columns when the panel is wide (single-column layouts): inputs left, carrier right. */}
       <div className="grid gap-5 @3xl:grid-cols-2 @3xl:gap-10">
@@ -346,7 +380,7 @@ export function ExpenseForm({ members, currentUser, submitting, onSubmit }: Expe
               disabled={!canSubmit}
               className="w-full rounded-xl bg-rail px-4 py-3 text-[0.9375rem] font-semibold text-rail-text shadow-surface transition-colors hover:bg-rail-hover disabled:cursor-not-allowed disabled:bg-sunken disabled:text-ink-3 disabled:shadow-none"
             >
-              {submitting ? t("form.submitting") : t("form.submit")}
+              {submitting ? t("form.submitting") : isEditing ? t("form.saveChanges") : t("form.submit")}
             </button>
             {!submitting && pendingBlocker !== null && (
               <p className="mt-2 text-center text-xs text-ink-3">{pendingBlocker}</p>

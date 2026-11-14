@@ -19,6 +19,18 @@ export interface Group {
   name: string;
   /** Present on GET /groups/{id}; may be absent on GET /groups. */
   members?: string[];
+  /** The creator — the only one who can rename, reset the invite, remove members, delete. */
+  owner?: string;
+  /** Shared as `/join/<inviteCode>`. */
+  inviteCode?: string;
+}
+
+export interface InvitePreview {
+  groupId: number;
+  name: string;
+  owner: string;
+  memberCount: number;
+  alreadyMember: boolean;
 }
 
 export type ExpenseSplit = {
@@ -156,7 +168,13 @@ function toGroup(data: unknown): Group | null {
   const raw = data as Record<string, unknown>;
   const id = toId(raw.id);
   if (id === null || typeof raw.name !== "string") return null;
-  return { id, name: raw.name, members: toStringArray(raw.members) };
+  return {
+    id,
+    name: raw.name,
+    members: toStringArray(raw.members),
+    owner: typeof raw.owner === "string" ? raw.owner : undefined,
+    inviteCode: typeof raw.invite_code === "string" ? raw.invite_code : undefined,
+  };
 }
 
 function toExpense(data: unknown): Expense | null {
@@ -253,9 +271,55 @@ export async function fetchGroups(): Promise<Group[]> {
 }
 
 export async function fetchGroup(groupId: number): Promise<Group> {
-  const group = toGroup(await apiFetch<unknown>(`/groups/${groupId}`));
+  return groupOrThrow(await apiFetch<unknown>(`/groups/${groupId}`));
+}
+
+function groupOrThrow(data: unknown): Group {
+  const group = toGroup(data);
   if (!group) throw new ApiError(UNEXPECTED_RESPONSE, null);
   return group;
+}
+
+/** Create a group; the caller becomes its owner and first member. */
+export async function createGroup(name: string): Promise<Group> {
+  return groupOrThrow(await apiFetch<unknown>("/groups", { method: "POST", body: { name } }));
+}
+
+export async function renameGroup(groupId: number, name: string): Promise<Group> {
+  return groupOrThrow(await apiFetch<unknown>(`/groups/${groupId}`, { method: "PATCH", body: { name } }));
+}
+
+export async function deleteGroup(groupId: number): Promise<void> {
+  await apiFetch(`/groups/${groupId}`, { method: "DELETE" });
+}
+
+/** New invite code; links with the old one stop working. Owner only. */
+export async function resetInvite(groupId: number): Promise<Group> {
+  return groupOrThrow(await apiFetch<unknown>(`/groups/${groupId}/invite/reset`, { method: "POST" }));
+}
+
+/** Owner removes `member`, or a member passes their own name to leave. 409 while unsettled. */
+export async function removeMember(groupId: number, member: string): Promise<void> {
+  await apiFetch(`/groups/${groupId}/members/${encodeURIComponent(member)}`, { method: "DELETE" });
+}
+
+export async function previewInvite(code: string): Promise<InvitePreview> {
+  const raw = await apiFetch<Record<string, unknown>>(`/invites/${encodeURIComponent(code)}`);
+  const groupId = toId(raw?.group_id);
+  if (groupId === null || typeof raw.name !== "string") throw new ApiError(UNEXPECTED_RESPONSE, null);
+  return {
+    groupId,
+    name: raw.name,
+    owner: typeof raw.owner === "string" ? raw.owner : "",
+    memberCount: typeof raw.member_count === "number" ? raw.member_count : 0,
+    alreadyMember: raw.already_member === true,
+  };
+}
+
+export async function joinInvite(code: string): Promise<Group> {
+  return groupOrThrow(
+    await apiFetch<unknown>(`/invites/${encodeURIComponent(code)}/join`, { method: "POST" }),
+  );
 }
 
 export async function fetchExpenses(groupId: number): Promise<Expense[]> {
@@ -284,6 +348,17 @@ export async function createExpense(
     idempotencyKey,
   });
   return toExpense(body);
+}
+
+/** Replace a bill (its payer only). PUT is idempotent, so retries need no key. */
+export async function updateExpense(
+  groupId: number,
+  expenseId: number,
+  payload: ExpensePayload,
+): Promise<Expense | null> {
+  return toExpense(
+    await apiFetch<unknown>(`/groups/${groupId}/expenses/${expenseId}`, { method: "PUT", body: payload }),
+  );
 }
 
 export async function deleteExpense(groupId: number, expenseId: number): Promise<void> {

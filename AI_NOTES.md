@@ -44,9 +44,10 @@ Neither folder is a git repository yet (nor is the root) — see Phase 0.
 | Persistence: migration `0002` (users, sessions, groups, members, expenses, shares, idempotency keys), SQLAlchemy repos | ✅ |
 | HTTP: `/auth/*`, `/groups…` per §4, error mapping, CORS allowlist | ✅ |
 | Auth: accounts + HttpOnly session cookie (stdlib scrypt); `X-User` removed | ✅ |
-| Tests: 51 (unit, HTTP on fakes, real-Postgres integration) | ✅ pass |
+| Tests: 61 (unit, HTTP on fakes, real-Postgres integration) | ✅ pass |
 | Verified with the redesigned frontend in a browser against the real API | ✅ |
-| Create-group / membership endpoints | ❌ not yet (households come from `make seed`) |
+| Groups: create, rename, delete (owner), invite links + join, remove/leave (settled only) — branch `feature/group-management` | ✅ |
+| Edit expense (payer only) | ✅ |
 
 ### 2.2 Frontend — redesigned, with login/register, against a mock
 
@@ -225,8 +226,10 @@ tests → docs.
 - [ ] "Who pays whom" settlement suggestions (min-transfers from balances; pure frontend or a
       `GET /groups/{id}/settlements` endpoint).
 - [ ] Record a settlement/payment as a special expense type.
-- [ ] Group creation & member management endpoints + UI.
-- [ ] Edit expense; pagination for long expense lists.
+- [x] Group creation & member management endpoints + UI (owner, invite links, settled-only leave).
+- [x] Edit expense (payer only).
+- [ ] Pagination for long expense lists.
+- [ ] Transfer group ownership.
 - [x] Backend auth per §4.1 (users table, scrypt hashing, session cookie), replacing `X-User`.
 
 ### Phase 8 — Deployment (all 🟡 CONFIRM)

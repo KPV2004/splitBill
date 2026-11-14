@@ -15,8 +15,9 @@ REST API for splitting group expenses — groups, expenses with equal/exact spli
 writes, and per-member balances. Built with FastAPI on a clean architecture core, running on
 PostgreSQL 16 in Docker.
 
-> **Status:** every endpoint below is implemented, with account sign-in (session cookie),
-> PostgreSQL persistence and 51 tests (unit, HTTP, and real-Postgres integration).
+> **Status:** every endpoint below is implemented — accounts (session cookie), groups with
+> owners and invite links, expenses with edit/delete, balances — on PostgreSQL, with 61 tests
+> (unit, HTTP, and real-Postgres integration).
 
 ---
 
@@ -94,9 +95,17 @@ hashed with scrypt; only a hash of each session token is stored.
 | POST | `/auth/logout` | Sign out | `204` |
 | GET | `/auth/me` | The signed-in user | `200` |
 | GET | `/groups` | Groups of the requesting user | `200` |
-| GET | `/groups/{group_id}` | Group with member list | `200` |
+| POST | `/groups` | Create a group; you become its owner | `201` |
+| GET | `/groups/{group_id}` | Group with members, owner and invite code | `200` |
+| PATCH | `/groups/{group_id}` | Rename — owner only | `200` |
+| DELETE | `/groups/{group_id}` | Delete with all its bills — owner only | `204` |
+| POST | `/groups/{group_id}/invite/reset` | New invite code — owner only | `200` |
+| DELETE | `/groups/{group_id}/members/{username}` | Remove (owner) or leave (self); balance must be 0.00 | `204` |
+| GET | `/invites/{code}` | Preview a group from an invite link | `200` |
+| POST | `/invites/{code}/join` | Join it | `200` |
 | POST | `/groups/{group_id}/expenses` | Record a new expense (requires `Idempotency-Key`) | `201` |
 | GET | `/groups/{group_id}/expenses` | Expenses, reverse chronological | `200` |
+| PUT | `/groups/{group_id}/expenses/{expense_id}` | Edit expense — payer only | `200` |
 | DELETE | `/groups/{group_id}/expenses/{expense_id}` | Delete expense — payer only | `204` |
 | GET | `/groups/{group_id}/balances` | Net balance per member; positive = owed to that member | `200` |
 

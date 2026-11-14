@@ -39,7 +39,29 @@ class NotMemberError(DomainError):
 
 class NotPayerError(DomainError):
     def __init__(self) -> None:
-        super().__init__("Only the person who paid can delete this expense.")
+        super().__init__("Only the person who paid can change or delete this expense.")
+
+
+class NotOwnerError(DomainError):
+    def __init__(self) -> None:
+        super().__init__("Only the group's owner can do that.")
+
+
+class UnsettledBalanceError(DomainError):
+    def __init__(self, member: str) -> None:
+        super().__init__(
+            f"{member} still has a balance in this group. Settle it to 0.00 before they leave."
+        )
+
+
+class OwnerCannotLeaveError(DomainError):
+    def __init__(self) -> None:
+        super().__init__("The owner can't leave the group. Delete the group instead.")
+
+
+class InviteNotFoundError(DomainError):
+    def __init__(self) -> None:
+        super().__init__("This invite link is not valid. Ask for a new one.")
 
 
 class GroupNotFoundError(DomainError):
