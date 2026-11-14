@@ -27,6 +27,17 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173"
 
+    # Sessions (AI_NOTES.md §4.5). Set SESSION_COOKIE_SECURE=true anywhere served over HTTPS.
+    session_ttl_hours: int = 168
+    session_cookie_secure: bool = False
+
+    # Only read by the demo seed command (`make seed`); never needed to run the API.
+    seed_demo_password: str | None = None
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
     @property
     def database_url(self) -> str:
         """SQLAlchemy async URL built from parts.

@@ -11,9 +11,9 @@ Split group expenses in Thai baht. Record who paid, split the cost **equally** o
 amounts**, and see who owes whom. Every amount is computed in integer satang, never floats, and
 balances always sum to `0.00`.
 
-> 🚧 **Status:** the frontend is complete and runs against a mock API. The backend has its
-> setup, database connection and `/health` endpoint; the group, expense and balance endpoints
-> are next. See [AI_NOTES.md](AI_NOTES.md) for the current state and the development plan.
+> **Status:** frontend and backend both work end to end: accounts, groups you create and
+> share by invite link, equal/exact splits, editable bills and balances, on PostgreSQL. See
+> [AI_NOTES.md](AI_NOTES.md) for the plan.
 
 ---
 
@@ -44,7 +44,8 @@ graph LR
 ```
 
 The browser only talks to the Next.js server. Next rewrites `/api/*` to the backend, so no CORS
-setup is needed in development. The `X-User` and `Idempotency-Key` headers pass through as-is.
+setup is needed in development. The session cookie and the `Idempotency-Key` header pass through
+as-is.
 
 ## Quick start
 
@@ -61,7 +62,8 @@ npm run mock                                   # terminal 1: mock API on :9999
 BACKEND_ORIGIN=http://127.0.0.1:9999 npm run dev   # terminal 2: app on :3000
 ```
 
-Open http://localhost:3000 and enter `alice`, `bob`, `carol` or `dave` as the user.
+Open http://localhost:3000 and sign in as `alice`, `bob`, `carol` or `dave` (password
+`splitbill123`, mock only), or create an account.
 
 ### Option B — full stack
 
@@ -71,6 +73,7 @@ cd backend
 cp .env.example .env        # then set POSTGRES_PASSWORD in .env
 make db                     # start PostgreSQL
 make migrate                # apply migrations
+make seed                   # optional demo data (set SEED_DEMO_PASSWORD in .env first)
 make dev                    # API on http://127.0.0.1:8000 (docs at /docs)
 
 # 2. Frontend (new terminal)
@@ -81,24 +84,29 @@ npm run dev                 # http://localhost:3000 → proxies /api/* to :8000
 
 Check the API with `curl http://127.0.0.1:8000/health`.
 
-> Until the business endpoints land, the full stack only serves `/health`; use Option A to try
-> the app.
+> Sign in with a demo account after `make seed` (password: whatever you set as
+> `SEED_DEMO_PASSWORD`), or register a new one.
 
 ## Using the app
 
-1. **Choose a user.** Your name goes in the `X-User` header; you only see your own groups.
-2. **Pick a group.**
+1. **Sign in or create an account.** You only see the groups you belong to. Switch between
+   Thai and English at any time.
+2. **Pick or create a group.** Use **New group**, then **Invite** to copy a join link for
+   your roommates. The owner can rename it, reset the link, remove members (once their balance
+   is 0.00) or delete it; anyone can leave once settled.
 3. **Add an expense:** description, amount, who paid, and the split:
    - **Equal** among the members you tick. Leftover satang go one at a time to members in list
      order: 1,000.00 among alice, bob and carol → 333.34 / 333.33 / 333.33.
    - **Exact** amounts per member. Submitting stays disabled until the shares add up to the total.
    A live preview shows each share as you type.
 4. **Check balances.** Positive means the member is owed money; negative means they owe.
-5. **Delete** an expense. Only the person who paid it can.
+5. **Edit or delete** a bill. Only the person who paid it can.
 
 ## API overview
 
-All endpoints except `/health` need the `X-User` header. Money is always a string with 2
+All endpoints except `/health` and `/auth/*` need a signed-in session. The frontend and mock use
+an HttpOnly session cookie set by `/auth/login` or `/auth/register`
+([AI_NOTES.md §4.1](AI_NOTES.md)). Money is always a string with 2
 decimals (`"1000.00"`). Errors are always `{"detail": "<message>"}`.
 
 | Method | Path | Description |
@@ -111,7 +119,7 @@ decimals (`"1000.00"`). Errors are always `{"detail": "<message>"}`.
 | DELETE | `/groups/{group_id}/expenses/{expense_id}` | Delete an expense (payer only) |
 | GET | `/groups/{group_id}/balances` | Net balance per member |
 
-Status codes: `401` no `X-User` · `404` unknown group or expense · `403` not a member / not the
+Status codes: `401` not signed in · `404` unknown group or expense · `403` not a member / not the
 payer · `400` business rule broken or `Idempotency-Key` missing · `409` key reused with a
 different body · `422` malformed request.
 
@@ -143,6 +151,7 @@ npm test
 | `make db` | Start only the database |
 | `make dev` | Run the API locally with reload |
 | `make migrate` | Apply migrations |
+| `make seed` | Add demo users and groups (needs `SEED_DEMO_PASSWORD`) |
 | `make revision m="..."` | Create a migration |
 | `make logs` | Follow container logs |
 | `make clean` | ⚠️ Stop everything **and delete the database volume** |

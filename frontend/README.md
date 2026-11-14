@@ -31,13 +31,16 @@ npm run mock                                       # terminal 1: mock API on 127
 BACKEND_ORIGIN=http://127.0.0.1:9999 npm run dev   # terminal 2: app on localhost:3000
 ```
 
-Open http://localhost:3000 and enter `alice`, `bob`, `carol` or `dave`. The mock ships three
-groups: **Bangkok Trip** (alice, bob, carol), **Office Lunch** (alice, bob) and
-**Chiang Mai 2026** (bob, carol, dave). Its data lives in memory and resets on restart.
+Open http://localhost:3000. You'll land on the sign-in screen. Sign in with a demo account
+(`alice`, `bob`, `carol` or `dave`, password `splitbill123`), or create a new one on the register
+screen. The mock ships three groups: **Ari Condo 12A** (alice, bob, carol, with demo bills),
+**Lat Phrao House** (alice, bob) and **Chiang Mai Flat** (bob, carol, dave). New accounts start
+with no group. Everything lives in memory and resets when the mock restarts.
 
 ### Against the real backend
 
-Start the backend first (see [../backend/README.md](../backend/README.md)), then:
+Start the backend first (`make db`, `make migrate`, `make seed`, then `make dev` — see
+[../backend/README.md](../backend/README.md)), then:
 
 ```bash
 npm run dev     # proxies /api/* to http://127.0.0.1:8000 by default
@@ -67,7 +70,9 @@ npm run dev     # proxies /api/* to http://127.0.0.1:8000 by default
 The browser never calls the backend directly. `next.config.ts` rewrites `/api/*` to
 `BACKEND_ORIGIN`, so requests are same-origin and no CORS setup is needed.
 
-- Identity goes in the `X-User` header (the name you enter).
+- Identity is an HttpOnly session cookie (`sb_session`) set by `POST /auth/login` or
+  `POST /auth/register`. The browser sends it automatically; JavaScript never reads it. Any 401
+  sends you back to sign in. Contract: [../AI_NOTES.md §4.1](../AI_NOTES.md).
 - Creating an expense sends an `Idempotency-Key` header so a retry can't create a duplicate.
 - Money goes over the wire as strings with 2 decimals and no separators: `"1000.00"`.
 - Errors arrive as `{"detail": "..."}` and are shown to the user as written. If `detail` is
@@ -78,22 +83,33 @@ The browser never calls the backend directly. `next.config.ts` rewrites `/api/*`
 ```
 frontend/
 ├── app/
-│   ├── layout.tsx            root layout, Geist fonts, metadata
-│   ├── page.tsx              the whole app: state, data loading, create/delete handlers
-│   └── globals.css           Tailwind entry
+│   ├── layout.tsx            root layout, Anuphan font (Thai + Latin), providers
+│   ├── page.tsx              group ledger; redirects to /login when signed out
+│   ├── login/page.tsx        sign in (honours ?next= to return to an invite)
+│   ├── register/page.tsx     create an account
+│   ├── join/[code]/page.tsx  invite link: preview and join a group
+│   └── globals.css           design tokens (Tailwind @theme) and browser-surface styling
 ├── components/
-│   ├── UserGroupPicker.tsx   1 · user name + group list
-│   ├── ExpenseForm.tsx       3 · new expense form + live split preview
-│   ├── BalancesPanel.tsx     5 · per-member balances (owed / owes / settled)
-│   ├── ExpenseList.tsx       expense list, payer-only delete with confirm
-│   └── Banner.tsx            dismissible error / success banners
+│   ├── AuthScreen.tsx        login + register form, validation, brand panel
+│   ├── HouseholdRail.tsx     green rail: groups, your balance in each, account, language
+│   ├── BalancesPanel.tsx     your balance sentence + every roommate on a diverging scale
+│   ├── ExpenseList.tsx       bills table (list on phones), mini carriers, payer-only delete
+│   ├── ExpenseForm.tsx       new/edit bill, equal/exact split, live carrier, idempotency per draft
+│   ├── GroupSettings.tsx     rename, invite link, members (remove/leave), delete group
+│   ├── CreateHousehold.tsx   name a new group
+│   ├── JoinScreen.tsx        the join page's content
+│   ├── Carrier.tsx           the "pinto" stack: a bill's shares as proportional tiers
+│   ├── Banner.tsx, Icon.tsx, LanguageToggle.tsx, Providers.tsx
 ├── lib/
-│   ├── api.ts                typed API client, response normalizers, error messages
+│   ├── api.ts                typed API client (cookie auth), normalizers, ApiError
+│   ├── auth.tsx              session provider: me / login / register / logout
+│   ├── i18n.tsx              Thai + English strings, language switch, error wording
+│   ├── members.ts            roommate colours (identity only, by member order)
 │   ├── money.ts              integer-satang parse / format / serialize, equal split
 │   ├── split.ts              equal and exact split preview logic
 │   └── *.test.ts             Vitest unit tests
 ├── scripts/
-│   └── mock-backend.mjs      dev-only mock of the full API contract
+│   └── mock-backend.mjs      dev-only mock of the full API contract + auth
 └── next.config.ts            /api rewrite, Turbopack + Tailwind
 ```
 
@@ -107,8 +123,8 @@ All money logic lives in `lib/money.ts` and must match the backend exactly
 - **Equal split:** leftover satang go one at a time to members in list order.
   1,000.00 among alice, bob and carol → 333.34 / 333.33 / 333.33. The form sends members in
   group member order, so the preview always matches what the backend stores.
-- **Exact split:** the Add button stays disabled until the shares add up to the total; the
-  preview shows what's left to assign or how much is over.
+- **Exact split:** Save stays disabled until the shares add up to the total; the carrier shows
+  what's left as an open tier, or spills over the rim in red when it's over.
 - Two formatters, two jobs:
   - `formatCents` → for **display**, with thousands separators: `"1,000.00"`
   - `serializeCents` → for the **API**: `"1000.00"`. Never send `formatCents` output.
@@ -124,16 +140,16 @@ npm run lint
 Tests cover parsing edge cases, the equal-split golden example, member ordering, and exact-split
 balancing. There are no component tests yet.
 
-## Known issues
+## Design
 
-Tracked in [../AI_NOTES.md §3](../AI_NOTES.md):
+The UI follows the "Pinto" direction (named after the Thai stacked tiffin carrier): a deep
+enamel-green rail over a cool steel ground, and each roommate owns one enamel colour used only
+to show whose share is whose. Product facts live in [PRODUCT.md](PRODUCT.md); the direction
+contract is in `.impeccable/surfaces/app-page-tsx.md`.
 
-- `lib/split.ts` calls `formatCents` without importing it, which breaks the type check and one
-  test. It should use `serializeCents`.
-- `ExpenseForm.tsx` sends the amount with `formatCents`, so amounts of 1,000 or more go out as
-  `"1,000.00"` and the backend will reject them.
-- A new `Idempotency-Key` is generated on every click, so retrying after a timeout can create a
-  duplicate. It should be kept per draft.
+## Known gaps
+
+- No dark theme, no component tests, no ownership transfer.
 
 ## Notes for contributors
 

@@ -55,16 +55,21 @@ Never use `pip`, `python -m venv`, or system python directly. Always go through 
 | ⚠️ Stop AND wipe database data | `make clean` |
 | Apply database migrations | `make migrate` |
 | Generate a migration | `make revision m="add groups table"` |
+| Add demo users + households | `make seed` |
 
 > Status: `pyproject.toml` + `uv.lock` exist. Runtime deps: fastapi, uvicorn, pydantic-settings,
-> sqlalchemy[asyncio], psycopg[binary], alembic. Dev group: pytest, httpx, ruff. After `uv add`/`uv remove`
+> sqlalchemy[asyncio], psycopg[binary], alembic. Dev group: pytest, httpx, ruff. Password hashing
+> uses the standard library (`hashlib.scrypt`) — no extra dependency.
+>
+> Demo data: `make seed` adds users alice/bob/carol/dave (password from `SEED_DEMO_PASSWORD` in
+> `.env`), three households and a few bills. Safe to re-run. After `uv add`/`uv remove`
 > run `uv sync` so `uv.lock` updates — Docker builds with `--frozen` and will fail on a stale lock.
 
 ---
 
 ## 3. Clean Architecture
 
-### 3.1 Directory structure (target)
+### 3.1 Directory structure
 
 ```
 backend/
@@ -85,26 +90,31 @@ backend/
 ├── app/
 │   ├── main.py                  # composition root: create app, wire everything
 │   ├── domain/                  # LAYER 1 — pure business core
-│   │   ├── entities/            #   Group, Expense, Member (dataclasses)
-│   │   ├── value_objects/       #   Money, Split (EqualSplit / ExactSplit)
-│   │   ├── services/            #   SplitCalculator, BalanceCalculator
-│   │   └── errors.py            #   DomainError, NotMemberError, ExactSplitMismatchError...
+│   │   ├── entities.py          #   User, Group, Share, NewExpense, Expense (dataclasses)
+│   │   ├── money.py             #   parse_amount (string → satang), format_cents
+│   │   ├── splits.py            #   equal_split, exact_split
+│   │   ├── balances.py          #   compute_balances
+│   │   └── errors.py            #   DomainError and subclasses (one per HTTP outcome)
 │   ├── application/             # LAYER 2 — use cases
-│   │   ├── use_cases/           #   CreateExpense, ListExpenses, DeleteExpense,
-│   │   │                        #   GetGroup, ListGroups, GetBalances
-│   │   ├── ports.py             #   GroupRepository, ExpenseRepository (Protocols)
-│   │   └── dto.py               #   dataclasses passed between layers
+│   │   ├── use_cases/           #   auth.py (AuthService), groups.py (GroupService),
+│   │   │                        #   expenses.py (ExpenseService, CreateExpenseCommand)
+│   │   ├── ports.py             #   repositories, IdempotencyStore, UnitOfWork, PasswordHasher
+│   │   └── dto.py               #   GroupView, ExpenseView, BalanceView, IdempotencyRecord...
 │   ├── infrastructure/          # LAYER 4 — implementations
-│   │   ├── persistence/         #   db.py (async engine/session), repository impls
-│   │   └── idempotency.py       #   idempotency key store
+│   │   ├── config.py            #   Settings (env-driven)
+│   │   ├── security.py          #   scrypt password hashing (stdlib)
+│   │   ├── seed.py              #   `make seed` demo data
+│   │   └── persistence/         #   db.py, models.py, repositories.py, uow.py
 │   └── presentation/            # LAYER 3 — HTTP
-│       ├── routers/             #   groups.py, expenses.py, balances.py
-│       ├── schemas/             #   Pydantic request/response models
-│       ├── deps.py              #   get_current_user, get_use_cases, X-User parsing
+│       ├── routers/             #   auth.py, groups.py (groups, expenses, balances)
+│       ├── schemas/api.py       #   Pydantic request/response models
+│       ├── deps.py              #   unit of work per request, session cookie → current user
 │       └── error_handlers.py    #   DomainError → HTTP responses
 └── tests/
-    ├── unit/                    #   domain + use cases (no HTTP)
-    └── api/                     #   FastAPI TestClient end-to-end
+    ├── fakes.py                 #   in-memory UnitOfWork + fast hasher
+    ├── unit/                    #   domain + use cases (no HTTP, no DB)
+    ├── api/                     #   FastAPI TestClient end-to-end on the fakes
+    └── integration/             #   real PostgreSQL (`<POSTGRES_DB>_test`), skipped if down
 ```
 
 ### 3.2 The dependency rule (HARD RULE)
@@ -156,11 +166,21 @@ Imports may only point **inward**. Violations must be rejected in review.
 - Invariant: **balances across all members always sum to `0.00`**. Enforce with a test on the golden example:
   alice `+666.66`, bob `−333.33`, carol `−333.33` → sum `0.00`.
 
-### 4.5 Authentication — `X-User` header
+### 4.5 Authentication — accounts and session cookie
 
-- Identity is the plain username in the `X-User` header (simple header auth for this project).
-- Missing header → `401`.
-- Acting on a group the user is not a member of → `403` (unknown group → `404`).
+*(Replaced the plain `X-User` header on 2026-11-14, approved by the user.)*
+
+- `POST /auth/register` / `POST /auth/login` take `{"username", "password"}` and set the session
+  cookie `sb_session` (`HttpOnly; SameSite=Lax; Path=/`, `Secure` when `SESSION_COOKIE_SECURE=true`,
+  lifetime `SESSION_TTL_HOURS`, default 168). `POST /auth/logout` deletes the session; `GET /auth/me`
+  returns the signed-in user.
+- Username: 3–32 chars of `[a-z0-9._-]`; taken → `409`. Password: 8–128 chars.
+- Passwords are hashed with stdlib scrypt (n=2^15, r=8, p=1, 16-byte salt) in
+  `infrastructure/security.py`. Session tokens are 32 random bytes; only their SHA-256 is stored.
+- Wrong password and unknown user give the same `401 "Incorrect username or password."` and take
+  the same time.
+- Identity comes **only** from the session — never from a header, body, query or path.
+- No session → `401`; acting on a group the user is not a member of → `403` (unknown group → `404`).
 
 ### 4.6 Idempotency — `Idempotency-Key` header
 
@@ -172,8 +192,21 @@ Imports may only point **inward**. Violations must be rejected in review.
 
 ### 4.7 Permissions
 
-- Deleting an expense is allowed **only for its payer**; anyone else (even a member) → `403`.
+- Editing (`PUT`) or deleting an expense is allowed **only for its current payer**; anyone else
+  (even a member) → `403`. An edit follows every create rule; the new payer may be any member.
 - Listing groups returns only groups containing the requesting user.
+
+### 4.8 Groups, owners and invites (added 2026-11-14, approved by the user)
+
+- Any signed-in user can create a group; they become its **owner** and first member.
+- Only the owner can rename it, reset its invite code, remove other members, or delete it
+  (deleting removes every bill and idempotency key with it). Others → `403`.
+- Every group has an **invite code** (12 URL-safe random chars). Members see it and share it as
+  `/join/<code>`. A signed-in user who opens it can preview and join; joining twice is a no-op.
+  Resetting the code makes old links return `404`. New members are appended to the member order.
+- A member may **leave** (remove themself). The owner cannot leave → `409` (delete instead).
+- Leaving or being removed requires a **balance of exactly 0.00**, otherwise `409`, so balances
+  always keep summing to zero.
 
 ---
 
@@ -181,18 +214,36 @@ Imports may only point **inward**. Violations must be rejected in review.
 
 | Method | Path | Description | Success |
 |---|---|---|---|
+| POST | `/auth/register` | Create an account and sign in (sets cookie) | `201` |
+| POST | `/auth/login` | Sign in (sets cookie) | `200` |
+| POST | `/auth/logout` | Sign out (clears cookie) | `204` |
+| GET | `/auth/me` | The signed-in user | `200` |
 | GET | `/groups` | Groups of the requesting user | `200` |
-| GET | `/groups/{group_id}` | Group with member list | `200` |
+| POST | `/groups` | Create a group (`{"name"}`); caller becomes owner | `201` |
+| GET | `/groups/{group_id}` | Group with members, owner, invite code | `200` |
+| PATCH | `/groups/{group_id}` | Rename (`{"name"}`) — owner only | `200` |
+| DELETE | `/groups/{group_id}` | Delete group and its bills — owner only | `204` |
+| POST | `/groups/{group_id}/invite/reset` | New invite code — owner only | `200` |
+| DELETE | `/groups/{group_id}/members/{username}` | Remove a member (owner) or leave (self); settled only | `204` |
+| GET | `/invites/{code}` | Preview a group from its invite code | `200` |
+| POST | `/invites/{code}/join` | Join the group (idempotent) | `200` |
 | POST | `/groups/{group_id}/expenses` | Record a new expense (requires `Idempotency-Key`) | `201` |
 | GET | `/groups/{group_id}/expenses` | Expenses, reverse chronological (newest first; tie-break: newest id) | `200` |
+| PUT | `/groups/{group_id}/expenses/{expense_id}` | Replace an expense — payer only | `200` |
 | DELETE | `/groups/{group_id}/expenses/{expense_id}` | Delete expense — payer only | `204` |
 | GET | `/groups/{group_id}/balances` | Net balance per member (positive = owed to member) | `200` |
+
+Response shapes: groups `{"id", "name", "members": [...], "owner", "invite_code"}` (member order
+is meaningful); invite preview `{"group_id", "name", "owner", "member_count", "already_member"}`;
+expenses `{"id", "description", "paid_by", "amount", "split": {"type", "members"|"shares"},
+"shares": {member: amount}, "created_at"}`; balances `[{"member", "balance"}]` in member order.
+`make seed` adds demo groups; users create their own with `POST /groups`.
 
 Example request (golden case):
 
 ```http
 POST /groups/1/expenses
-X-User: alice
+Cookie: sb_session=…
 Idempotency-Key: 7f3c2a10-dinner-0001
 
 {
@@ -209,8 +260,9 @@ Idempotency-Key: 7f3c2a10-dinner-0001
 
 - Domain errors (`domain/errors.py`) are raised by use cases; `presentation/error_handlers.py` maps them to HTTP. Routers never raise `HTTPException` for business rules directly.
 - Mapping: malformed request schema (bad body/params) → `422`, business-rule violation → `400`,
-  missing `X-User` → `401`, missing `Idempotency-Key` → `400`, not a member / not payer → `403`,
-  unknown group/expense → `404`, idempotency conflict → `409`.
+  no session / wrong credentials → `401`, missing `Idempotency-Key` → `400`, not a member / not
+  payer / not owner → `403`, unknown group/expense/invite → `404`, idempotency conflict /
+  username taken / unsettled balance / owner leaving → `409`.
 - Implemented in `app/presentation/error_handlers.py`: `RequestValidationError` → flattened
   `422 {"detail": "<message>"}`; unhandled exceptions → `500 {"detail": "Internal server error"}`
   with details only in server logs.
@@ -242,6 +294,9 @@ Idempotency-Key: 7f3c2a10-dinner-0001
   - idempotent replay returns the original response,
   - non-payer delete rejected.
 - `tests/api/` — end-to-end through the HTTP layer, covering every endpoint incl. auth failures (401/403/404).
+- `tests/integration/` — the same flow on real PostgreSQL (migrations, constraints, the
+  idempotency unique-key race). Uses `<POSTGRES_DB>_test`, rebuilt each run; skipped when the
+  database is down.
 - A change is not done until `uv run pytest` passes.
 
 ---

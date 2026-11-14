@@ -92,6 +92,6 @@ export function exactPayloadShares(preview: ExactPreview): Record<string, string
   return Object.fromEntries(
     preview.entries
       .filter((entry): entry is ExactShare & { cents: number } => !entry.blank && entry.cents !== null)
-      .map((entry) => [entry.member, formatCents(entry.cents)]),
+      .map((entry) => [entry.member, serializeCents(entry.cents)]),
   );
 }

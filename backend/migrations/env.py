@@ -9,6 +9,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.infrastructure.config import settings
+from app.infrastructure.persistence.models import Base
 
 config = context.config
 
@@ -16,11 +17,12 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Single source of truth: env vars / .env via Settings — never hardcode URLs here.
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# A caller (the integration tests) may pass its own URL; otherwise use Settings.
+if not config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
-# No declarative models yet; set to models' MetaData once entities land so
-# `alembic revision --autogenerate` can diff against the database.
-target_metadata = None
+# Lets `alembic revision --autogenerate` diff the models against the database.
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
