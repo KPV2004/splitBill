@@ -11,9 +11,9 @@ Split group expenses in Thai baht. Record who paid, split the cost **equally** o
 amounts**, and see who owes whom. Every amount is computed in integer satang, never floats, and
 balances always sum to `0.00`.
 
-> 🚧 **Status:** the frontend is complete and runs against a mock API. The backend has its
-> setup, database connection and `/health` endpoint; the group, expense and balance endpoints
-> are next. See [AI_NOTES.md](AI_NOTES.md) for the current state and the development plan.
+> **Status:** frontend and backend both work end to end: accounts with sign-in, households,
+> equal/exact splits, idempotent bill entry and balances, on PostgreSQL. Households are created by
+> `make seed` for now. See [AI_NOTES.md](AI_NOTES.md) for the plan.
 
 ---
 
@@ -73,6 +73,7 @@ cd backend
 cp .env.example .env        # then set POSTGRES_PASSWORD in .env
 make db                     # start PostgreSQL
 make migrate                # apply migrations
+make seed                   # optional demo data (set SEED_DEMO_PASSWORD in .env first)
 make dev                    # API on http://127.0.0.1:8000 (docs at /docs)
 
 # 2. Frontend (new terminal)
@@ -83,8 +84,8 @@ npm run dev                 # http://localhost:3000 → proxies /api/* to :8000
 
 Check the API with `curl http://127.0.0.1:8000/health`.
 
-> Until the business endpoints land, the full stack only serves `/health`; use Option A to try
-> the app.
+> Sign in with a demo account after `make seed` (password: whatever you set as
+> `SEED_DEMO_PASSWORD`), or register a new one.
 
 ## Using the app
 
@@ -102,8 +103,8 @@ Check the API with `curl http://127.0.0.1:8000/health`.
 ## API overview
 
 All endpoints except `/health` and `/auth/*` need a signed-in session. The frontend and mock use
-an HttpOnly session cookie ([AI_NOTES.md §4.1](AI_NOTES.md)); the backend currently specifies a
-plain `X-User` header until that change is approved. Money is always a string with 2
+an HttpOnly session cookie set by `/auth/login` or `/auth/register`
+([AI_NOTES.md §4.1](AI_NOTES.md)). Money is always a string with 2
 decimals (`"1000.00"`). Errors are always `{"detail": "<message>"}`.
 
 | Method | Path | Description |
@@ -148,6 +149,7 @@ npm test
 | `make db` | Start only the database |
 | `make dev` | Run the API locally with reload |
 | `make migrate` | Apply migrations |
+| `make seed` | Add demo users and households (needs `SEED_DEMO_PASSWORD`) |
 | `make revision m="..."` | Create a migration |
 | `make logs` | Follow container logs |
 | `make clean` | ⚠️ Stop everything **and delete the database volume** |

@@ -4,7 +4,7 @@
 COMPOSE := docker compose
 
 .DEFAULT_GOAL := help
-.PHONY: help build db up down restart logs ps db-shell app-shell migrate revision test lint dev clean
+.PHONY: help build db up down restart logs ps db-shell app-shell migrate revision seed test lint dev clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -30,8 +30,8 @@ logs: ## Follow logs of all services
 ps: ## Show container status
 	$(COMPOSE) ps
 
-db-shell: ## psql shell inside the db container
-	$(COMPOSE) exec db psql -U splitbill -d splitbill
+db-shell: ## psql shell inside the db container (user/db from the container's env)
+	$(COMPOSE) exec db sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"'
 
 app-shell: ## Shell inside the app container
 	$(COMPOSE) exec app sh
@@ -41,6 +41,9 @@ migrate: ## Apply pending database migrations (db must be running: `make db`)
 
 revision: ## Create a migration: make revision m="add groups table"
 	uv run alembic revision -m "$(m)"
+
+seed: ## Add demo users/households (needs SEED_DEMO_PASSWORD in .env; run `make migrate` first)
+	uv run python -m app.infrastructure.seed
 
 test: ## Run the test suite (local uv venv)
 	uv run pytest

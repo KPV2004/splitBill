@@ -34,21 +34,19 @@ Neither folder is a git repository yet (nor is the root) — see Phase 0.
 
 ## 2. Current state (as of 2026-11-14)
 
-### 2.1 Backend — scaffolding only
+### 2.1 Backend — API implemented (branch `feature/backend-api`)
 
 | Area | Status |
 |---|---|
-| Tooling: uv, Ruff, pytest, Dockerfile, docker-compose (postgres:16-alpine + app), Makefile | ✅ done |
-| Config: `app/infrastructure/config.py` — pydantic-settings, required DB creds, fail-fast | ✅ done |
-| DB: async SQLAlchemy engine + `get_session` (`app/infrastructure/persistence/db.py`) | ✅ done |
-| Alembic wired to Settings; `0001_baseline` is an **empty** migration | ✅ done (no tables) |
-| Error handlers: 422 flattening + generic 500 (`app/presentation/error_handlers.py`) | ✅ done |
-| `GET /health` (DB probe) + 1 smoke test | ✅ done, passes |
-| `domain/`, `application/`, routers, schemas, `deps.py`, idempotency store | ❌ not started |
-| Business endpoints (`/groups…`, expenses, balances) | ❌ not started |
-| CORS middleware (`CORS_ORIGINS` exists in Settings but is unused) | ❌ not wired |
-
-Checks: `uv run pytest` → 1 passed · `uv run ruff check .` → clean.
+| Tooling: uv, Ruff, pytest, Docker Compose, Makefile (`make seed` added) | ✅ |
+| Domain: money (satang), equal/exact splits, balances, errors | ✅ |
+| Application: Auth/Group/Expense services, ports, unit of work, idempotency incl. race | ✅ |
+| Persistence: migration `0002` (users, sessions, groups, members, expenses, shares, idempotency keys), SQLAlchemy repos | ✅ |
+| HTTP: `/auth/*`, `/groups…` per §4, error mapping, CORS allowlist | ✅ |
+| Auth: accounts + HttpOnly session cookie (stdlib scrypt); `X-User` removed | ✅ |
+| Tests: 51 (unit, HTTP on fakes, real-Postgres integration) | ✅ pass |
+| Verified with the redesigned frontend in a browser against the real API | ✅ |
+| Create-group / membership endpoints | ❌ not yet (households come from `make seed`) |
 
 ### 2.2 Frontend — redesigned, with login/register, against a mock
 
@@ -77,22 +75,18 @@ Branch `feature/auth-and-redesign`. Design record: `frontend/PRODUCT.md`,
    regression test.
 3. ~~Idempotency key regenerated per click~~ — fixed; one key per draft, reused on retry, rotated
    after success or when the payload changes (`components/ExpenseForm.tsx`).
-4. Minor: `status.HTTP_422_UNPROCESSABLE_ENTITY` is deprecated in current Starlette (the pytest
-   warning) — switch to `HTTP_422_UNPROCESSABLE_CONTENT`.
-5. Minor: `Makefile` `db-shell` hard-codes `-U splitbill -d splitbill` instead of reading `.env`.
-6. Minor: `tests/api/test_health.py` imports `app.main`, which builds `Settings()` at import time,
-   so tests require a `.env` with DB creds. Provide test env vars via a `conftest.py`
-   (fake values, per SECURITY_RULES §3.6) so CI works without `.env`.
+4. ~~Deprecated 422 constant~~ — fixed (`HTTP_422_UNPROCESSABLE_CONTENT`).
+5. ~~`make db-shell` hard-coded credentials~~ — fixed; reads the container's env.
+6. ~~Tests needed a `.env`~~ — fixed; `tests/conftest.py` supplies fake values when there is none.
 
 ---
 
 ## 4. The contract both sides must agree on
 
-### 4.1 Auth (proposed — frontend + mock only; backend not built yet)
+### 4.1 Auth (implemented in backend, frontend and mock)
 
-> Changing auth is a 🟡 CONFIRM action under `backend/SECURITY_RULES.md`. This section is the
-> proposal the frontend and mock implement; `backend/AI_NOTES.md §4.5` (plain `X-User`) still
-> describes the backend until the user approves the change and it is copied there.
+> Approved by the user on 2026-11-14 and recorded in `backend/AI_NOTES.md §4.5`, which is the
+> source of truth.
 
 | Endpoint | Body | Success | Errors |
 |---|---|---|---|
@@ -103,11 +97,12 @@ Branch `feature/auth-and-redesign`. Design record: `frontend/PRODUCT.md`,
 
 - Session cookie: `sb_session`, `HttpOnly; SameSite=Lax; Path=/`, 7 days. JavaScript never sees
   it; the Next `/api/*` rewrite forwards `Cookie` and `Set-Cookie` unchanged (verified).
-- Username: 3–32 chars, `[a-z0-9._-]`. Password: at least 8 chars. Passwords are stored hashed
-  (the mock uses scrypt; the backend will need a hashing dependency → 🟡 CONFIRM).
+- Username: 3–32 chars, `[a-z0-9._-]`. Password: 8–128 chars, stored hashed with scrypt
+  (stdlib in the backend — no extra dependency).
 - Every group endpoint takes identity from the session; no session → `401`. The same 401 → 404 → 403
   order applies.
-- Mock demo accounts: `alice`, `bob`, `carol`, `dave`, password `splitbill123` (mock only).
+- Demo accounts: `alice`, `bob`, `carol`, `dave`. Mock password `splitbill123`; the backend uses
+  whatever `SEED_DEMO_PASSWORD` is set to when you run `make seed`.
 
 ### 4.2 Groups, expenses, balances
 
@@ -129,8 +124,7 @@ Rules that bite if forgotten:
 - **Money:** string in → integer cents → string out (`"-333.33"`), never float, never `round()`.
 - **Equal split:** leftover cents go one at a time in the order of the request's `members` list.
   The frontend sends members in **group member order** — keep `GET /groups/{id}` order stable.
-- **Auth order:** no session (today's backend: missing `X-User`) → 401, unknown group → 404,
-  non-member → 403.
+- **Auth order:** no session → 401, unknown group → 404, non-member → 403.
 - **Idempotency:** per `(group_id, key)`; same key + same body → replay original status/body;
   same key + different body → 409; missing key → 400.
 - Write `detail` messages for humans ("The shares do not add up to the total.") — they reach
@@ -169,62 +163,62 @@ checklist" in backend/AI_NOTES.md §9: router → schema → use case → port �
 tests → docs.
 
 ### Phase 0 — Hygiene (½ day)
-- [ ] `git init` (root as monorepo, or one repo per side — decide), verify `.env` is ignored
+- [x] `git init` (root as monorepo, or one repo per side — decide), verify `.env` is ignored
       **before** the first commit; commit `.env.example` only.
-- [ ] Fix bugs §3.1 and §3.2 (`serializeCents` on the wire) + regression test.
-- [ ] Backend `tests/conftest.py` with fake env vars; fix the 422 constant deprecation.
+- [x] Fix bugs §3.1 and §3.2 (`serializeCents` on the wire) + regression test.
+- [x] Backend `tests/conftest.py` with fake env vars; fix the 422 constant deprecation.
 - [ ] Add a CI workflow running both sides' quality gates.
 
 ### Phase 1 — Backend domain core (no DB, no HTTP)
-- [ ] `domain/value_objects/money.py`: `Money` (int cents), `parse("1000.00")` / `to_str()`,
+- [x] `domain/value_objects/money.py`: `Money` (int cents), `parse("1000.00")` / `to_str()`,
       rejecting floats, >2 dp, ≤0, > 99,999,999.99.
-- [ ] `domain/value_objects/split.py`: `EqualSplit(members)`, `ExactSplit(shares)`.
-- [ ] `domain/services/`: `SplitCalculator` (remainder by list order), `BalanceCalculator`.
-- [ ] `domain/entities/`: `Group`, `Member`, `Expense` dataclasses; `domain/errors.py`.
-- [ ] `tests/unit/`: golden equal split, exact mismatch, balances sum to zero, property-style
+- [x] `domain/value_objects/split.py`: `EqualSplit(members)`, `ExactSplit(shares)`.
+- [x] `domain/services/`: `SplitCalculator` (remainder by list order), `BalanceCalculator`.
+- [x] `domain/entities/`: `Group`, `Member`, `Expense` dataclasses; `domain/errors.py`.
+- [x] `tests/unit/`: golden equal split, exact mismatch, balances sum to zero, property-style
       test (random amounts/member counts → shares sum to total).
 
 ### Phase 2 — Application layer
-- [ ] `application/ports.py`: `GroupRepository`, `ExpenseRepository`, `IdempotencyStore` Protocols.
-- [ ] Use cases: `ListGroups`, `GetGroup`, `CreateExpense`, `ListExpenses`, `DeleteExpense`,
+- [x] `application/ports.py`: `GroupRepository`, `ExpenseRepository`, `IdempotencyStore` Protocols.
+- [x] Use cases: `ListGroups`, `GetGroup`, `CreateExpense`, `ListExpenses`, `DeleteExpense`,
       `GetBalances` — membership and payer checks live **here** (SECURITY_RULES §3.1).
-- [ ] Unit tests with in-memory fakes: non-member 403, non-payer delete, idempotent replay, 409.
+- [x] Unit tests with in-memory fakes: non-member 403, non-payer delete, idempotent replay, 409.
 
 ### Phase 3 — Persistence
-- [ ] SQLAlchemy models + Alembic revision `0002`: `users`, `groups`, `group_members`
+- [x] SQLAlchemy models + Alembic revision `0002`: `users`, `groups`, `group_members`
       (with `position` to keep member order), `expenses` (amount_cents BIGINT, payer, created_at),
       `expense_shares` (expense_id, member, cents), `idempotency_keys`
       (group_id, key, request_hash, status, response_body; UNIQUE(group_id, key)).
-- [ ] Seed migration (or `make seed`) with the demo data the frontend uses: Bangkok Trip
+- [x] Seed migration (or `make seed`) with the demo data the frontend uses: Bangkok Trip
       (alice, bob, carol), Office Lunch (alice, bob), Chiang Mai 2026 (bob, carol, dave).
       The contract has no "create group" endpoint, so groups must come from seeds.
-- [ ] Repository implementations; set `target_metadata` in `migrations/env.py`.
-- [ ] Store computed shares at write time so balances never depend on re-running split logic.
-- [ ] Create expense + idempotency record in **one transaction**; handle concurrent same-key
+- [x] Repository implementations; set `target_metadata` in `migrations/env.py`.
+- [x] Store computed shares at write time so balances never depend on re-running split logic.
+- [x] Create expense + idempotency record in **one transaction**; handle concurrent same-key
       requests via the unique constraint (loser re-reads and replays).
 
 ### Phase 4 — HTTP layer
-- [ ] `presentation/schemas/` (Pydantic, `extra="forbid"`, money as `str`), `deps.py`
+- [x] `presentation/schemas/` (Pydantic, `extra="forbid"`, money as `str`), `deps.py`
       (`X-User` → 401, `Idempotency-Key` → 400), routers for every §4 endpoint.
-- [ ] Map `DomainError` subclasses → 400/403/404/409 in `error_handlers.py`.
-- [ ] CORS middleware from `CORS_ORIGINS` (explicit allowlist; not needed for the Next proxy,
+- [x] Map `DomainError` subclasses → 400/403/404/409 in `error_handlers.py`.
+- [x] CORS middleware from `CORS_ORIGINS` (explicit allowlist; not needed for the Next proxy,
       but needed for direct browser access).
-- [ ] `tests/api/` for every endpoint incl. 401/403/404/409, golden example end to end.
-- [ ] Update backend README status + this file's §2.
+- [x] `tests/api/` for every endpoint incl. 401/403/404/409, golden example end to end.
+- [x] Update backend README status + this file's §2.
 
 ### Phase 5 — Integration
-- [ ] Run the frontend against the real backend; reconcile any shape differences with §4.
+- [x] Run the frontend against the real backend; reconcile any shape differences with §4.
 - [ ] Contract test: run one scenario script against both `mock-backend.mjs` and the real API
       and diff the responses, so the mock can't silently drift.
 - [ ] Tighten `lib/api.ts` normalizers to the pinned shapes.
-- [ ] Fix idempotency-key-per-draft (bug §3.3).
+- [x] Fix idempotency-key-per-draft (bug §3.3).
 
 ### Phase 6 — Frontend quality
 - [ ] Component tests (Vitest + Testing Library, jsdom) for `ExpenseForm` (submit disabled until
       exact split balances; payload format) and `ExpenseList` (payer-only delete).
 - [ ] Split `page.tsx` state into a hook (`useGroupData`) — it holds ~15 `useState`s.
 - [ ] Persist the active user/group in the URL (`?user=alice&group=1`) so reloads keep context.
-- [ ] Replace the root `README.md` boilerplate with real run instructions.
+- [x] Replace the root `README.md` boilerplate with real run instructions.
 - [ ] Accessibility pass (focus after submit/delete, keyboard flow through split options).
 
 ### Phase 7 — Product features (beyond the current contract; update backend/AI_NOTES.md first)
@@ -233,8 +227,7 @@ tests → docs.
 - [ ] Record a settlement/payment as a special expense type.
 - [ ] Group creation & member management endpoints + UI.
 - [ ] Edit expense; pagination for long expense lists.
-- [ ] Backend auth per §4.1 (users table, password hashing, session cookie), replacing `X-User`
-      — a 🟡 CONFIRM change per SECURITY_RULES. Frontend and mock are done.
+- [x] Backend auth per §4.1 (users table, scrypt hashing, session cookie), replacing `X-User`.
 
 ### Phase 8 — Deployment (all 🟡 CONFIRM)
 - [ ] Production compose / hosting; real secrets via env; decide whether `/docs` stays public.

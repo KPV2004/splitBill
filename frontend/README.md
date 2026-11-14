@@ -39,8 +39,8 @@ with no household. Everything lives in memory and resets when the mock restarts.
 
 ### Against the real backend
 
-The FastAPI backend doesn't implement the endpoints or auth yet, so use the mock for now. Once it
-does, start it first (see [../backend/README.md](../backend/README.md)), then:
+Start the backend first (`make db`, `make migrate`, `make seed`, then `make dev` — see
+[../backend/README.md](../backend/README.md)), then:
 
 ```bash
 npm run dev     # proxies /api/* to http://127.0.0.1:8000 by default
@@ -145,7 +145,6 @@ contract is in `.impeccable/surfaces/app-page-tsx.md`.
 
 ## Known gaps
 
-- Auth and all group endpoints exist only in the mock; the FastAPI backend has neither yet.
 - No dark theme, no component tests, no create-household flow (households are seeded).
 
 ## Notes for contributors

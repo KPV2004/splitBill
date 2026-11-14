@@ -15,8 +15,8 @@ REST API for splitting group expenses — groups, expenses with equal/exact spli
 writes, and per-member balances. Built with FastAPI on a clean architecture core, running on
 PostgreSQL 16 in Docker.
 
-> 🚧 **Status:** in active development — `/health` is live; the group/expense endpoints land next
-> per the contract below.
+> **Status:** every endpoint below is implemented, with account sign-in (session cookie),
+> PostgreSQL persistence and 51 tests (unit, HTTP, and real-Postgres integration).
 
 ---
 
@@ -46,7 +46,10 @@ make up
 # 3. Apply database migrations
 make migrate
 
-# 4. Verify
+# 4. (optional) Demo data — set SEED_DEMO_PASSWORD in .env first
+make seed      # users alice, bob, carol, dave + three households
+
+# 5. Verify
 curl http://localhost:8000/health
 # {"status":"ok","database":"up","env":"development"}
 ```
@@ -65,6 +68,7 @@ Interactive docs: **http://localhost:8000/docs** (Swagger UI)
 | `make dev` | Run the API locally with uv + reload |
 | `make migrate` | Apply pending Alembic migrations |
 | `make revision m="add groups table"` | Generate a new migration |
+| `make seed` | Add demo users, households and bills (idempotent) |
 | `make db-shell` | psql shell inside the db container |
 | `make app-shell` | Shell inside the app container |
 | `make test` | Run the test suite |
@@ -75,14 +79,20 @@ Interactive docs: **http://localhost:8000/docs** (Swagger UI)
 
 ### Authentication
 
-Identity comes from the `X-User` header (username). Missing header → `401`, unknown group → `404`,
-non-member or non-payer action → `403`.
+Accounts with a username and password. `POST /auth/register` or `POST /auth/login` sets an
+HttpOnly session cookie (`sb_session`); every other endpoint except `/health` requires it.
+No session → `401`, unknown group → `404`, non-member or non-payer action → `403`. Passwords are
+hashed with scrypt; only a hash of each session token is stored.
 
 ### Endpoints
 
 | Method | Path | Description | Success |
 |---|---|---|---|
 | GET | `/health` | Liveness + database connectivity | `200` |
+| POST | `/auth/register` | Create an account and sign in | `201` |
+| POST | `/auth/login` | Sign in | `200` |
+| POST | `/auth/logout` | Sign out | `204` |
+| GET | `/auth/me` | The signed-in user | `200` |
 | GET | `/groups` | Groups of the requesting user | `200` |
 | GET | `/groups/{group_id}` | Group with member list | `200` |
 | POST | `/groups/{group_id}/expenses` | Record a new expense (requires `Idempotency-Key`) | `201` |
@@ -96,7 +106,7 @@ A 1,000.00 THB dinner paid by `alice`, split equally among three members:
 
 ```http
 POST /groups/1/expenses
-X-User: alice
+Cookie: sb_session=…
 Idempotency-Key: 7f3c2a10-dinner-0001
 Content-Type: application/json
 
@@ -173,7 +183,10 @@ and the app fails fast if they are missing.
 | `POSTGRES_DB` | required | Database name |
 | `POSTGRES_HOST` | `localhost` | `db` inside the compose network (auto-overridden) |
 | `POSTGRES_PORT` | `5432` | Database port |
-| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated allowlist |
+| `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated allowlist (credentials allowed) |
+| `SESSION_TTL_HOURS` | `168` | Session lifetime |
+| `SESSION_COOKIE_SECURE` | `false` | Set `true` when served over HTTPS |
+| `SEED_DEMO_PASSWORD` | unset | Only for `make seed`: the demo accounts' password |
 
 `.env` is git-ignored; [`.env.example`](.env.example) is the committed template.
 
@@ -198,5 +211,7 @@ make lint   # uv run ruff check . && uv run ruff format --check .
 ```
 
 Unit tests cover the domain and use cases with fake repositories (no database needed); API tests
-run through FastAPI's TestClient. Required cases include equal-split remainder distribution,
-exact-split validation, the balances-sum-to-zero invariant, and idempotent replay.
+run through FastAPI's TestClient on the same fakes; integration tests repeat the flow on a real
+PostgreSQL test database (`<POSTGRES_DB>_test`, created automatically, skipped if the database is
+down). Required cases include equal-split remainder distribution, exact-split validation, the
+balances-sum-to-zero invariant, idempotent replay and the concurrent same-key race.
