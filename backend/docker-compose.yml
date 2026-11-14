@@ -1,0 +1,40 @@
+# SplitBill backend — local dev stack: PostgreSQL 16 + FastAPI app.
+# Credentials come from .env — no secret defaults committed here
+# (AI_NOTES.md §1.1 #2, SECURITY_RULES.md §2.4). Compose fails fast if .env is missing.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: splitbill-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-splitbill}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?missing-in-.env}
+      POSTGRES_DB: ${POSTGRES_DB:-splitbill}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-splitbill} -d ${POSTGRES_DB:-splitbill}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  app:
+    build: .
+    container_name: splitbill-api
+    env_file:
+      - .env
+    environment:
+      # Inside the compose network the db host is `db`, not localhost.
+      POSTGRES_HOST: db
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

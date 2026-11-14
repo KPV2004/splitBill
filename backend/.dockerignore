@@ -1,0 +1,15 @@
+# Nothing from the local environment, caches, or docs enters the image.
+.venv
+.env*
+.git
+.gitignore
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+tests
+Dockerfile
+docker-compose.yml
+Makefile
+*.md
